@@ -45,7 +45,7 @@ I do the following to share archived videos with others.
 1. Render date/time using `render_datetime.py`.
 1. Re-connect video clips using `cat` if you feel necessary.
 Ex: `cat foo1.dv foo2.dv foo3.dv > foo.dv`  
-This is another great side of handling video clips inn `.dv` format.
+This is another great side of handling video clips in `.dv` format.
 1. Convert video clips to `.mp4` using `ffmpeg`.
 
 'Raw' archived videos are not suitablle for sharing with others because,
