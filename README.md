@@ -72,8 +72,8 @@ mv_datetime.py [-h] [--format str] [--datetime str] [-y] infiles [infiles ...]
 
 Rename (mv) movie files using 'Recoeded Date' field.
 
-options:
-
+| Options |     |
+| ------- | --- |
 | `-h, --help`      | show this help message and exit |
 | `--format str`    | Custom format string, default="{}-{}-{}\_{}{}\_{}" |
 | `--datetime str`  | Use given "yyyy-mm-dd[ HH:MM[:SS]]" as date/time |
@@ -85,8 +85,8 @@ render_datetime.py [-h] [options] [--datetime str] infiles [infiles ...] output
 
 Render date/time to the given movie files.
 
-options:
-
+| Options |     |
+| ------- | --- |
 | `-h, --help`           | show this help message and exit |
 | `-s %, --size %`       | Font size in % |
 | `-c str, --color str`  | Text color (yellow, etc) |
