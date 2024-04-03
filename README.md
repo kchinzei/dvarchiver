@@ -75,7 +75,7 @@ Rename (mv) movie files using 'Recoeded Date' field.
 | Options |     |
 | ------- | --- |
 | `-h, --help`      | show this help message and exit |
-| `--format str`    | Custom format string, default=`"{}-{}-{}\_{}{}\_{}"` |
+| `--format str`    | Custom format string, default=`"{}-{}-{}_{}{}_{}"` |
 | `--datetime str`  | Use given `"yyyy-mm-dd[ HH:MM[:SS]]"` as date/time |
 | `-y, --yes`       | Yes to overwrite |
 
