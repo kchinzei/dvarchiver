@@ -114,3 +114,13 @@ For encoders, see [Encoders](https://ffmpeg.org/ffmpeg-codecs.html#Encoders) of 
 #### Preriquisite
 
 Follow [Léo did](https://leolabs.org/blog/capture-minidv-on-macos/).
+
+### Known Issues
+
+- `render_datetime.py` needs FPS (frame-per-sec) information to render timecode.
+It uses FPS obatained from the input movie.
+If `fps` filter is applied to modify FPS, the timecode will be incorrectly rendered.
+Some de-interlace filters can also double FPS.
+- `render_datetime.py` renders date/time or timecode using Recorded Date which is found at the beginning of the video clip.
+It assumes the video clip is continuous throught rendering.
+If two or more video clips are concatenated, it doesn't know the border of the video clips, that may result in wrong rendering.
