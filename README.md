@@ -75,8 +75,8 @@ Rename (mv) movie files using 'Recoeded Date' field.
 | Options |     |
 | ------- | --- |
 | `-h, --help`      | show this help message and exit |
-| `--format str`    | Custom format string, default="{}-{}-{}\_{}{}\_{}" |
-| `--datetime str`  | Use given "yyyy-mm-dd[ HH:MM[:SS]]" as date/time |
+| `--format str`    | Custom format string, default=`"{}-{}-{}\_{}{}\_{}"` |
+| `--datetime str`  | Use given `"yyyy-mm-dd[ HH:MM[:SS]]"` as date/time |
 | `-y, --yes`       | Yes to overwrite |
 
 ```bash
@@ -97,8 +97,19 @@ Render date/time to the given movie files.
 | `-t, --tc `            | Render timecode rather than HH:MM |
 | `--date, --no-date`    | Render date |
 | `--time, --no-time`    | Render time |
-| `--datetime str`       | Use given "yyyy-mm-dd[ HH:MM[:SS]]" as date/time |
+| `--datetime str`       | Use given `"yyyy-mm-dd[ HH:MM[:SS]]"` as date/time |
+| `--filter args`        | Optional filter arguments. Ex `" -vf estdif -interp 6p"` |
+| `--encode args`        | Optional encode arguments. Ex `" -c:v libx264 -preset slow -crf 22 -c:a copy"` |
 | `-y, --yes`            | Yes to overwrite. |
+
+`--filter` and `--encode` are intended to apply a video filter, typically a de-interlace and output encoder parameters.
+To escape filter / encoder options being parsed as switches for `render_datetime.py`, surround them by quotations, and insert a space before first parameter.
+Parameters start with `-` are parsed as switches for the filter and the encoder.
+Space is used to separate option switch and value(s).
+
+Video filers are not limited to de-interlace.
+For video filters, see [Video Filters](https://ffmpeg.org/ffmpeg-filters.html#Video-Filters) of `ffmpeg` document.
+For encoders, see [Encoders](https://ffmpeg.org/ffmpeg-codecs.html#Encoders) of `ffmpeg` document.
 
 #### Preriquisite
 

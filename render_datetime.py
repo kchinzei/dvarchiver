@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 #    The MIT License (MIT)
 #    Copyright (c) Kiyo Chinzei (kchinzei@gmail.com)
 #    Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -57,6 +58,26 @@ def get_mediainfo(path: str, field: str) -> str:
     p = subprocess.run([mediainfo, f'--Output={field}', path], check=True, text=True, stdout=subprocess.PIPE)
     return p.stdout.split('\n')[0]
 
+def parse_string_to_dict(input_string: str) -> Dict[str, Union[str,bool]]:
+    # Split the input string by whitespace
+    pairs = input_string.split()
+
+    # Initialize an empty dictionary
+    parsed_dict = {}
+
+    # Iterate over the pairs and split them into key-value pairs
+    for i, pair in enumerate(pairs):
+        if pair.startswith('-'):
+            key = pair[1:]  # Remove the leading '-'
+            if i + 1 < len(pairs) and not pairs[i + 1].startswith('-'):
+                value = pairs[i + 1]
+            else:
+                value = True
+            parsed_dict[key] = value
+
+    return parsed_dict
+
+    
 def render_datetime(input: str,
                     output: str,
                     sec_begin: Optional[float] = 1.0,
@@ -65,6 +86,8 @@ def render_datetime(input: str,
                     show_date: Optional[bool] = True,
                     show_time: Optional[bool] = True,
                     datetime_opt: Optional[str] = '',
+                    args_filter: Optional[str] = '',
+                    args_encode: Optional[str] = '',
                     text_size: Optional[int] = 5,
                     text_color: Optional[str] = 'white',
                     text_vpos: Optional[str] = 'b',
@@ -147,33 +170,41 @@ def render_datetime(input: str,
     else:
         ypos = 'h-(2*lh)'
 
-    # 3) Special workaround for DV
+    # 3) Filters if optionally specified
+    # Deinterlace, audio filters apply first.
+    # ffmpeg.filter() requires a filter name is explicitly given.
+    filter_name = 'null'
+    kwargs_filter = parse_string_to_dict(args_filter)
+    if 'vf' in kwargs_filter:
+        filter_name = kwargs_filter.pop('vf')
+    # 4) Special workaround for DV
     # ffmpeg creation_time convert time to UTC. This is fine, but But Sony DV format seems assuming localtime.
     # Need 'Z' to prevent ffmpeg converting local timezone to UTC.
     # cf: https://video.stackexchange.com/questions/25568/what-is-the-correct-format-of-media-creation-time
     # Saving DV requires target. We assume here NTSC.
     datetime_s = f'{year_s}-{month_s}-{day_s} {hh_s}:{mm_s}:{ss_s}'
-    kwargs_output = {}
+    kwargs_output = parse_string_to_dict(args_encode)
     _, fileext = os.path.splitext(output)
     if fileext == '.dv':
         kwargs_output = {'metadata': f'creation_time={datetime_s}Z', 'target': 'ntsc-dv'}
     else:
         kwargs_optput = {'metadata': f'creation_time={datetime_s}'}
             
-    # 4) Render output movie
+    # 5) Render output movie
     #    Do it async
     in_mov = ffmpeg.input(input)
     audio = in_mov['a:0'] # Need to drop two or more audio streams if exist.
     video = in_mov.video
     process = (
         ffmpeg
-        .drawtext(video, x='w*0.02', y=ypos, fontfile=font, fontsize=text_size, fontcolor=text_color, borderw=2, **kwargs_date)
+        .filter(video, filter_name, **kwargs_filter)
+        .drawtext(x='w*0.02', y=ypos, fontfile=font, fontsize=text_size, fontcolor=text_color, borderw=2, **kwargs_date)
         .drawtext(x='(w-tw)-(w*0.02)', y=ypos, fontfile=font, fontsize=text_size, fontcolor=text_color, borderw=2, **kwargs_time)
         .output(audio, output, **kwargs_output)
         .run_async(quiet=True, overwrite_output=yes, pipe_stderr=True)
     )
-    stderr = process.communicate()
-    # print(f' -- stderr: {stderr.decode('utf-8')}', file=sys.stderr)
+    _, stderr = process.communicate()
+    print(f' -- stderr: {stderr.decode('utf-8')}', file=sys.stderr)
     return process.returncode
     
 
@@ -192,11 +223,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument('-b', '--begin', dest='sec_begin', metavar='sec', type=float, default=1.0, help='Begin rendring date/time, in second')
     parser.add_argument('-l', '--len', dest='sec_len', metavar='sec', type=float, default=4.0, help='Duration of rendring date/time. No end if negative')
     parser.add_argument('-v', '--vpos', dest='text_vpos', metavar='t/b', choices=['t','b'], default="b", help='Render text at top or bottom')
-    parser.add_argument('-t', '--tc', dest='show_tc', action='store_true', default=False, help='Render timecode rather than HH:MM')
+    parser.add_argument('--font', dest='font_path', metavar='path', default=None, help='Full path to a font file')
+    parser.add_argument('-t', '--tc', dest='show_tc', action='store_true', default=False, help='Render timecode rather than time in HH:MM')
     parser.add_argument('--date', dest='show_date', action=argparse.BooleanOptionalAction, default=True, help='Render date')
     parser.add_argument('--time', dest='show_time', action=argparse.BooleanOptionalAction, default=True, help='Render time')
-    parser.add_argument('--datetime', dest='datetime_opt', metavar='str', type=str, default='', help='Use given "yyyy-mm-dd[ HH:MM[:SS]]" as date/time')
-    parser.add_argument('--font', dest='font_path', metavar='path', type=str, default=None, help='Full path to a font file')
+    parser.add_argument('--datetime', dest='datetime_opt', metavar='str', default='', help='Use given "yyyy-mm-dd[ HH:MM[:SS]]" as date/time')
+    parser.add_argument('--filter', dest='args_filter', metavar='args', default='', help='Optional filter arguments. Ex " -vf estdif -interp 6p" (Note space before -vf)')
+    parser.add_argument('--encode', dest='args_encode', metavar='args', default='', help='Optional encode arguments. Ex " -c:v libx264 -preset slow -crf 22 -c:a copy"')
     parser.add_argument('-y', '--yes', action='store_true', default=False, help='Yes to overwrite.')
     parser.add_argument('infiles', nargs='+', type=str, help='Input movie files')
     parser.add_argument('output', help='Output dir or file')
