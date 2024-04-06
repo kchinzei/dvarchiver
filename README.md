@@ -113,7 +113,8 @@ For encoders, see [Encoders](https://ffmpeg.org/ffmpeg-codecs.html#Encoders) of 
 
 #### Preriquisite
 
-Follow [Léo did](https://leolabs.org/blog/capture-minidv-on-macos/).
+- Follow [Léo did](https://leolabs.org/blog/capture-minidv-on-macos/).
+- [`PyExifTool - PyPI`](https://pypi.org/project/PyExifTool/)
 
 ### Known Issues
 

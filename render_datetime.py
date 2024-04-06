@@ -31,9 +31,11 @@ import re
 import subprocess
 import datetime
 import ffmpeg # Need ffmpeg-python (not other similar ones)
+from exiftool import ExifToolHelper
 from typing import Any, Container, Iterable, List, Dict, Optional, Union
 
 DEFAULT_FONTFILE = 'CRR55.TTF'
+EXIF_KEY_HINTS = ['CreateDate', 'ModifyDate', 'DateTimeOriginal', 'OffsetTime', 'Aperture', 'Gain', 'Exposure', 'WhiteBalance', 'ISO', 'ImageStabilization', 'FNumber', 'Shutter', 'FrameRate', 'Rotation', 'GPS', 'Make', 'Model', 'MajorBrand', 'MinorVersion', 'CompatibleBrands', 'FileFunctionFlags']
 
 
 def which(cmd: str) -> str:
@@ -77,7 +79,13 @@ def parse_string_to_dict(input_string: str) -> Dict[str, Union[str,bool]]:
 
     return parsed_dict
 
-    
+def copy_exifdata(pathfrom: str, pathto:str):
+    with ExifToolHelper() as etool:
+        data = etool.get_metadata(pathfrom)
+        datatocopy = {key:val for key, val in data[0].items() for keypart in EXIF_KEY_HINTS if keypart in key}
+        etool.set_tags(pathto, datatocopy)
+
+
 def render_datetime(input: str,
                     output: str,
                     sec_begin: Optional[float] = 1.0,
@@ -147,6 +155,15 @@ def render_datetime(input: str,
     else:
         kwargs_enable = {'enable': f'between(t,{sec_begin},{sec_begin + sec_len})'}
 
+    # Font size / position
+    height = int(get_mediainfo(input, 'Video;%Height%'))
+    text_size = height * text_size / 100
+    if text_vpos == 't':
+        ypos = '2*lh'
+    else:
+        ypos = 'h-(2*lh)'
+    kwargs_enable |= {'fontfile': font, 'fontsize': text_size, 'fontcolor': text_color, 'borderw': 2} 
+
     # 2) Text for drawtext
     # Need clock advanced by sec_begin.
     d = datetime.datetime(int(year_s), int(month_s), int(day_s), int(hh_s), int(mm_s), int(ss_s)) + \
@@ -161,14 +178,6 @@ def render_datetime(input: str,
     if show_time and show_tc:
         rate = float(get_mediainfo(input, 'General;%FrameRate%'))
         kwargs_time |= {'timecode': f'{hh_s}:{mm_s}:{ss_s};00', 'rate': rate, 'tc24hmax': True, 'text': ''}
-
-    # Font size / position
-    height = int(get_mediainfo(input, 'Video;%Height%'))
-    text_size = height * text_size / 100
-    if text_vpos == 't':
-        ypos = '2*lh'
-    else:
-        ypos = 'h-(2*lh)'
 
     # 3) Filters if optionally specified
     # Deinterlace, audio filters apply first.
@@ -186,9 +195,9 @@ def render_datetime(input: str,
     kwargs_output = parse_string_to_dict(args_encode)
     _, fileext = os.path.splitext(output)
     if fileext == '.dv':
-        kwargs_output = {'metadata': f'creation_time={datetime_s}Z', 'target': 'ntsc-dv'}
+        kwargs_output |= {'metadata': f'creation_time={datetime_s}Z', 'target': 'ntsc-dv'}
     else:
-        kwargs_optput = {'metadata': f'creation_time={datetime_s}'}
+        kwargs_output |= {'metadata': f'creation_time={datetime_s}'}
             
     # 5) Render output movie
     #    Do it async
@@ -198,13 +207,14 @@ def render_datetime(input: str,
     process = (
         ffmpeg
         .filter(video, filter_name, **kwargs_filter)
-        .drawtext(x='w*0.02', y=ypos, fontfile=font, fontsize=text_size, fontcolor=text_color, borderw=2, **kwargs_date)
-        .drawtext(x='(w-tw)-(w*0.02)', y=ypos, fontfile=font, fontsize=text_size, fontcolor=text_color, borderw=2, **kwargs_time)
+        .drawtext(x='w*0.02', y=ypos, **kwargs_date)
+        .drawtext(x='(w-tw)-(w*0.02)', y=ypos, **kwargs_time)
         .output(audio, output, **kwargs_output)
         .run_async(quiet=True, overwrite_output=yes, pipe_stderr=True)
     )
     _, stderr = process.communicate()
     print(f' -- stderr: {stderr.decode('utf-8')}', file=sys.stderr)
+    copy_exifdata(input, output)
     return process.returncode
     
 
