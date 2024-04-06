@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 #    The MIT License (MIT)
 #    Copyright (c) Kiyo Chinzei (kchinzei@gmail.com)
 #    Permission is hereby granted, free of charge, to any person obtaining a copy

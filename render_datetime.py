@@ -192,13 +192,24 @@ def render_datetime(input: str,
     # cf: https://video.stackexchange.com/questions/25568/what-is-the-correct-format-of-media-creation-time
     # Saving DV requires target. We assume here NTSC.
     datetime_s = f'{year_s}-{month_s}-{day_s} {hh_s}:{mm_s}:{ss_s}'
-    kwargs_output = parse_string_to_dict(args_encode)
     _, fileext = os.path.splitext(output)
+    """
+    kwargs_output = {} # {'c:a': 'copy', 'c:v': 'copy'}
+    if fileext == '.dv':
+        kwargs_output |= {'target': 'ntsc-dv'}
+        kwargs_output |= {'metadata': f'creation_time={datetime_s}Z'}
+    else:
+        kwargs_output |= {'c:v': 'libx264', 'preset': 'fast', 'crf': 23}
+        kwargs_output |= {'metadata': f'creation_time={datetime_s}'}
+    kwargs_output |= parse_string_to_dict(args_encode) # may override c:v etc.
+    """
+    kwargs_output = parse_string_to_dict(args_encode)
+    print(f'{fileext=}')
     if fileext == '.dv':
         kwargs_output |= {'metadata': f'creation_time={datetime_s}Z', 'target': 'ntsc-dv'}
     else:
         kwargs_output |= {'metadata': f'creation_time={datetime_s}'}
-            
+    
     # 5) Render output movie
     #    Do it async
     in_mov = ffmpeg.input(input)
@@ -213,8 +224,9 @@ def render_datetime(input: str,
         .run_async(quiet=True, overwrite_output=yes, pipe_stderr=True)
     )
     _, stderr = process.communicate()
-    print(f' -- stderr: {stderr.decode('utf-8')}', file=sys.stderr)
-    copy_exifdata(input, output)
+    # print(f' -- stderr: {stderr.decode('utf-8')}', file=sys.stderr)
+    if process.returncode == 0:
+        copy_exifdata(input, output)
     return process.returncode
     
 
