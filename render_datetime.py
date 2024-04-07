@@ -30,6 +30,7 @@ import os
 import re
 import subprocess
 import datetime
+import shlex
 import ffmpeg # Need ffmpeg-python (not other similar ones)
 from exiftool import ExifToolHelper
 from typing import Any, Container, Iterable, List, Dict, Optional, Union
@@ -100,6 +101,7 @@ def render_datetime(input: str,
                     text_color: Optional[str] = 'white',
                     text_vpos: Optional[str] = 'b',
                     yes: Optional[bool] = False,
+                    simulate: Optional[bool] = False,
                     **kwargs: Any):
     '''
     Render date/time to a movie file.
@@ -204,7 +206,6 @@ def render_datetime(input: str,
     kwargs_output |= parse_string_to_dict(args_encode) # may override c:v etc.
     """
     kwargs_output = parse_string_to_dict(args_encode)
-    print(f'{fileext=}')
     if fileext == '.dv':
         kwargs_output |= {'metadata': f'creation_time={datetime_s}Z', 'target': 'ntsc-dv'}
     else:
@@ -212,22 +213,30 @@ def render_datetime(input: str,
     
     # 5) Render output movie
     #    Do it async
-    in_mov = ffmpeg.input(input)
-    audio = in_mov['a:0'] # Need to drop two or more audio streams if exist.
+    in_mov = ffmpeg.input(input, **{'t':10})
     video = in_mov.video
-    process = (
+    audio = in_mov['a:0'] # Need to drop two or more audio streams if exist.
+    #video = ffmpeg.input('pipe:', **{'f': 'lavfi', 'graph': "testsrc2=s=720x480", 't': 20}).video
+    #audio = ffmpeg.input('pipe:', **{'f': 'lavfi', 'graph': "sine", 't': 10}).audio
+    result_stream = (
         ffmpeg
         .filter(video, filter_name, **kwargs_filter)
         .drawtext(x='w*0.02', y=ypos, **kwargs_date)
         .drawtext(x='(w-tw)-(w*0.02)', y=ypos, **kwargs_time)
         .output(audio, output, **kwargs_output)
-        .run_async(quiet=True, overwrite_output=yes, pipe_stderr=True)
     )
-    _, stderr = process.communicate()
-    # print(f' -- stderr: {stderr.decode('utf-8')}', file=sys.stderr)
-    if process.returncode == 0:
-        copy_exifdata(input, output)
-    return process.returncode
+    if simulate:
+        args = ffmpeg.compile(result_stream, overwrite_output=yes)
+        print(f'{shlex.join(args)}')
+        return 0
+    else:
+        process = ffmpeg.run_async(result_stream, quiet=True, overwrite_output=yes, pipe_stderr=True)
+        _, stderr = process.communicate()
+        if process.returncode == 0:
+            copy_exifdata(input, output)
+        else:
+            print(f' -- stderr: {stderr.decode('utf-8')}', file=sys.stderr)
+        return process.returncode
     
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -253,6 +262,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument('--filter', dest='args_filter', metavar='args', default='', help='Optional filter arguments. Ex " -vf estdif -interp 6p" (Note space before -vf)')
     parser.add_argument('--encode', dest='args_encode', metavar='args', default='', help='Optional encode arguments. Ex " -c:v libx264 -preset slow -crf 22 -c:a copy"')
     parser.add_argument('-y', '--yes', action='store_true', default=False, help='Yes to overwrite.')
+    parser.add_argument('--simulate', action='store_true', default=False, help='Print generated ffmpeg command, no execution.')
     parser.add_argument('infiles', nargs='+', type=str, help='Input movie files')
     parser.add_argument('output', help='Output dir or file')
 
