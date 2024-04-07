@@ -224,7 +224,7 @@ def render_datetime(input: str,
     # 6) ffmpeg bug workaround.
     # ffmpeg dv muxer sporadically fails around audio.
     # As workaound, first write it in tmp file as wav.
-    # Then read it. Theoretically losless.
+    # Then read it. Theoretically lossless.
     tmp_wav = None
     if bug:
         arate = get_mediainfo(input, 'Audio;%SamplingRate% ') # a space to split...
