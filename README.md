@@ -84,6 +84,8 @@ render_datetime.py [-h] [options] [--datetime str] infiles [infiles ...] output
 ```
 
 Render date/time to the given movie files.
+If `output` is a directory, `infiles` are rendered and saved in `output` with the same name.
+Format of the output file is determined by the suffix of the output file name.
 
 | Options |     |
 | ------- | --- |
@@ -98,9 +100,12 @@ Render date/time to the given movie files.
 | `--date, --no-date`    | Render date |
 | `--time, --no-time`    | Render time |
 | `--datetime str`       | Use given `"yyyy-mm-dd[ HH:MM[:SS]]"` as date/time |
-| `--filter args`        | Optional filter arguments. Ex `" -vf estdif -interp 6p"` |
+| `--filter args`        | Optional filter arguments. Ex `" -vf yadif -mode send_frame"` |
 | `--encode args`        | Optional encode arguments. Ex `" -c:v libx264 -preset slow -crf 22 -c:a copy"` |
 | `-y, --yes`            | Yes to overwrite. |
+| `--ffmpeg path`        | Full path to ffpmeg. |
+| `--bug`                | Bug workaroound. Try it when "Assertion cur_size >= size" |
+| `--simulate`           | Print generated ffmpeg command, no execution. |
 
 `--filter` and `--encode` are intended to apply a video filter, typically a de-interlace and output encoder parameters.
 To escape filter / encoder options being parsed as switches for `render_datetime.py`, surround them by quotations, and insert a space before first parameter.
@@ -118,10 +123,17 @@ For encoders, see [Encoders](https://ffmpeg.org/ffmpeg-codecs.html#Encoders) of 
 
 ### Known Issues
 
+- `render_datetime.py` uses pre-defined 'ntsc-dv' target setting for `.dv` file.
+This ffmpeg setting uses 48kHz sampling rate for audio,
+even when the input `.dv` is in 32kHz.
+- `render_datetime.py` has an option `--bug`.
+Sporadically dv muxer of ffmpeg fails with "Assertion cur_size >= size..." message.
+When it happens, try `--bug`.
 - `render_datetime.py` needs FPS (frame-per-sec) information to render timecode.
 It uses FPS obatained from the input movie.
 If `fps` filter is applied to modify FPS, the timecode will be incorrectly rendered.
 Some de-interlace filters can also double FPS.
+If it matters, add `-mode send_frame`.
 - `render_datetime.py` renders date/time or timecode using Recorded Date which is found at the beginning of the video clip.
 It assumes the video clip is continuous throught rendering.
 If two or more video clips are concatenated, it doesn't know the border of the video clips, that may result in wrong rendering.

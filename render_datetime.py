@@ -28,6 +28,7 @@ import argparse
 import sys
 import os
 import re
+import tempfile
 import subprocess
 import datetime
 import shlex
@@ -50,15 +51,16 @@ def which(cmd: str) -> str:
 cwd = os.path.dirname(os.path.realpath(__file__))
 
 # Global variable
-font = os.path.join(cwd, 'font', DEFAULT_FONTFILE)
-mediainfo = which('mediainfo')
+font_path = os.path.join(cwd, 'font', DEFAULT_FONTFILE)
+mediainfo_path = which('mediainfo')
+ffmpeg_path = which('ffmpeg')
 
 def get_mediainfo(path: str, field: str) -> str:
     '''
     Run mediainfo to get information of the movie in path.
     '''
-    global mediainfo
-    p = subprocess.run([mediainfo, f'--Output={field}', path], check=True, text=True, stdout=subprocess.PIPE)
+    global mediainfo_path
+    p = subprocess.run([mediainfo_path, f'--Output={field}', path], check=True, text=True, stdout=subprocess.PIPE)
     return p.stdout.split('\n')[0]
 
 def parse_string_to_dict(input_string: str) -> Dict[str, Union[str,bool]]:
@@ -101,13 +103,15 @@ def render_datetime(input: str,
                     text_color: Optional[str] = 'white',
                     text_vpos: Optional[str] = 'b',
                     yes: Optional[bool] = False,
+                    bug: Optional[bool] = False,
                     simulate: Optional[bool] = False,
                     **kwargs: Any):
     '''
     Render date/time to a movie file.
     Internally uses ffmpeg and mediainfo
     '''
-    global font
+    global ffmpeg_path
+    global font_path
 
     # 1) Prepare output file
     #    If it's a dir, put output there with the same name as input
@@ -164,7 +168,7 @@ def render_datetime(input: str,
         ypos = '2*lh'
     else:
         ypos = 'h-(2*lh)'
-    kwargs_enable |= {'fontfile': font, 'fontsize': text_size, 'fontcolor': text_color, 'borderw': 2} 
+    kwargs_enable |= {'fontfile': font_path, 'fontsize': text_size, 'fontcolor': text_color, 'borderw': 2} 
 
     # 2) Text for drawtext
     # Need clock advanced by sec_begin.
@@ -213,11 +217,28 @@ def render_datetime(input: str,
     
     # 5) Render output movie
     #    Do it async
-    in_mov = ffmpeg.input(input, **{'t':10})
+    in_mov = ffmpeg.input(input)
     video = in_mov.video
     audio = in_mov['a:0'] # Need to drop two or more audio streams if exist.
-    #video = ffmpeg.input('pipe:', **{'f': 'lavfi', 'graph': "testsrc2=s=720x480", 't': 20}).video
-    #audio = ffmpeg.input('pipe:', **{'f': 'lavfi', 'graph': "sine", 't': 10}).audio
+
+    # 6) ffmpeg bug workaround.
+    # ffmpeg dv muxer sporadically fails around audio.
+    # As workaound, first write it in tmp file as wav.
+    # Then read it. Theoretically losless.
+    tmp_wav = None
+    if bug:
+        arate = get_mediainfo(input, 'Audio;%SamplingRate% ') # a space to split...
+        arate = arate.split(' ')[0]
+        temp_file = tempfile.mkstemp(suffix='.wav')
+        os.close(temp_file[0]) # We don't write from python.
+        tmp_wav = temp_file[1]
+        _, stderr = (
+            ffmpeg
+            .output(audio, tmp_wav, **{'f': 's16le', 'ar': arate, 'ac': 2})
+            .run(cmd=ffmpeg_path, quiet=True, overwrite_output=yes, capture_stderr=True)
+        )
+        audio = ffmpeg.input(tmp_wav, **{'f': 's16le', 'ar': arate, 'ac': 2}).audio
+
     result_stream = (
         ffmpeg
         .filter(video, filter_name, **kwargs_filter)
@@ -225,22 +246,25 @@ def render_datetime(input: str,
         .drawtext(x='(w-tw)-(w*0.02)', y=ypos, **kwargs_time)
         .output(audio, output, **kwargs_output)
     )
+    retval = 0
     if simulate:
-        args = ffmpeg.compile(result_stream, overwrite_output=yes)
+        args = ffmpeg.compile(result_stream, cmd=ffmpeg_path, overwrite_output=yes)
         print(f'{shlex.join(args)}')
-        return 0
     else:
-        process = ffmpeg.run_async(result_stream, quiet=True, overwrite_output=yes, pipe_stderr=True)
+        process = ffmpeg.run_async(result_stream, cmd=ffmpeg_path, quiet=True, overwrite_output=yes, pipe_stderr=True)
         _, stderr = process.communicate()
         if process.returncode == 0:
             copy_exifdata(input, output)
         else:
             print(f' -- stderr: {stderr.decode('utf-8')}', file=sys.stderr)
-        return process.returncode
-    
+        retval = process.returncode
+    if tmp_wav:
+        os.remove(tmp_wav)
+    return retval
 
 def main(argv: Optional[List[str]] = None) -> int:
-    global font
+    global ffmpeg_path
+    global font_path
     
     if sys.version_info < REQUIRED_PYTHON_VERSION:
         print(f'Requires python {REQUIRED_PYTHON_VERSION} or newer.', file=sys.stderr)
@@ -254,14 +278,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument('-b', '--begin', dest='sec_begin', metavar='sec', type=float, default=1.0, help='Begin rendring date/time, in second')
     parser.add_argument('-l', '--len', dest='sec_len', metavar='sec', type=float, default=4.0, help='Duration of rendring date/time. No end if negative')
     parser.add_argument('-v', '--vpos', dest='text_vpos', metavar='t/b', choices=['t','b'], default="b", help='Render text at top or bottom')
-    parser.add_argument('--font', dest='font_path', metavar='path', default=None, help='Full path to a font file')
+    parser.add_argument('--font', metavar='path', default=None, help='Full path to a font file')
     parser.add_argument('-t', '--tc', dest='show_tc', action='store_true', default=False, help='Render timecode rather than time in HH:MM')
     parser.add_argument('--date', dest='show_date', action=argparse.BooleanOptionalAction, default=True, help='Render date')
     parser.add_argument('--time', dest='show_time', action=argparse.BooleanOptionalAction, default=True, help='Render time')
     parser.add_argument('--datetime', dest='datetime_opt', metavar='str', default='', help='Use given "yyyy-mm-dd[ HH:MM[:SS]]" as date/time')
-    parser.add_argument('--filter', dest='args_filter', metavar='args', default='', help='Optional filter arguments. Ex " -vf estdif -interp 6p" (Note space before -vf)')
+    parser.add_argument('--filter', dest='args_filter', metavar='args', default='', help='Optional filter arguments. Ex " -vf yadif -mode send_frame" (Note space before -vf)')
     parser.add_argument('--encode', dest='args_encode', metavar='args', default='', help='Optional encode arguments. Ex " -c:v libx264 -preset slow -crf 22 -c:a copy"')
     parser.add_argument('-y', '--yes', action='store_true', default=False, help='Yes to overwrite.')
+    parser.add_argument('--ffmpeg', metavar='path', default=None, help='Full path to ffpmeg.')
+    parser.add_argument('--bug', action='store_true', default=False, help='Bug workaroound. Try it when "Assertion cur_size >= size"')
     parser.add_argument('--simulate', action='store_true', default=False, help='Print generated ffmpeg command, no execution.')
     parser.add_argument('infiles', nargs='+', type=str, help='Input movie files')
     parser.add_argument('output', help='Output dir or file')
@@ -269,9 +295,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(args=argv)
     args.arg0 = ' '.join(argparse._sys.argv)
 
-    if args.font_path is not None:
-        font = args.font_path
-
+    if args.font is not None:
+        font_path = args.font
+    if args.ffmpeg is not None:
+        ffmpeg_path = args.ffmpeg
     for path in args.infiles:
         args.input = path
         render_datetime(**vars(args))
