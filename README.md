@@ -15,7 +15,7 @@ As Léo pointed out, I also care about
 
 In addition to these, I also care about
 - Workflow to share videos with my family.
-- VHS tapes can also be archhived in the similar way.
+- VHS tapes can also be archived in the similar way.
 
 ## Tools
 
