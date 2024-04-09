@@ -121,14 +121,16 @@ For encoders, see [Encoders](https://ffmpeg.org/ffmpeg-codecs.html#Encoders) of 
 #### Preriquisite
 
 - Follow [Léo did](https://leolabs.org/blog/capture-minidv-on-macos/).
+- [`ffmpeg-python - PyPI`](https://pypi.org/project/ffmpeg-python/)
 - [`PyExifTool - PyPI`](https://pypi.org/project/PyExifTool/)
 
 ### Tested versions
 
 - OS: macOS 17.3 and 17.4.1 (Sonoma)
-- python 3.12.2
+- python 3.11.9 and 3.12.2
 - ffmpeg 6.1.1
 - ffmpeg-dl 5.1.4
+- ffmpeg-python 0.2.0
 - dvresque 24.01
 - mediainfo 24.03
 
