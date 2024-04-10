@@ -76,10 +76,10 @@ You can manually provide date/time.
 
 | Options |     |
 | ------- | --- |
-| `-h, --help`      | show this help message and exit |
+| `-h`, `--help`    | show this help message and exit |
 | `--format str`    | Custom format string, default=`"{}-{}-{}_{}{}_{}"` |
 | `--datetime str`  | Use given `"yyyy-mm-dd[ HH:MM[:SS]]"` as date/time |
-| `-y, --yes`       | Yes to overwrite |
+| `-y`, `--yes`     | Yes to overwrite |
 
 ```bash
 render_datetime.py [-h] [options] [--datetime str] infiles [infiles ...] output
@@ -91,23 +91,24 @@ Format of the output file is determined by the suffix of the output file name.
 
 | Options |     |
 | ------- | --- |
-| `-h, --help`           | show this help message and exit |
-| `-s %, --size %`       | Font size in % |
-| `-c str, --color str`  | Text color (yellow, etc) |
-| `-b sec, --begin sec`  | Begin rendring date/time, in second |
-| `-l sec, --len sec`    | Duration of rendring date/time. No end if negative |
-| `-v t/b, --vpos t/b`   | Render text at top or bottom |
+| `-h`, `--help`         | show this help message and exit |
+| `-s %`, `--size %`     | Font size in % |
+| `-c str`, `--color str`| Text color (yellow, etc) |
+| `-b sec`, `--begin sec`| Begin rendring date/time, in second |
+| `-l sec`, `--len sec`  | Duration of rendring date/time. No end if negative |
+| `-v t/b`, `--vpos t/b` | Render text at top or bottom |
 | `--font path`          | Full path to a font file |
-| `-t, --tc `            | Render timecode rather than HH:MM |
-| `--date, --no-date`    | Render date |
-| `--time, --no-time`    | Render time |
+| `-t`, `--tc `          | Render timecode rather than HH:MM |
+| `--date`, `--no-date`  | Render date or not|
+| `--time`, `--no-time`  | Render time or not|
 | `--datetime str`       | Use given `"yyyy-mm-dd[ HH:MM[:SS]]"` as date/time |
 | `--filter args`        | Optional filter arguments. Ex `" -vf yadif -mode send_frame"` |
-| `--encode args`        | Optional encode arguments. Ex `" -c:v libx264 -preset slow -crf 22 -c:a copy"` |
-| `-y, --yes`            | Yes to overwrite |
+| `--encode args`        | Optional encode arguments. Ex `" -c:v libx264 -preset slow -crf 20 -c:a ac3"` |
+| `-y`, `--yes`          | Yes to overwrite |
 | `--ffmpeg path`        | Full path to ffpmeg |
 | `--bug`                | Bug workaroound. Try it when "Assertion cur_size >= size" |
 | `--simulate`           | Print generated ffmpeg command, no execution |
+|`-e ext`, `--ext ext`   | File extension for output (dv, mov, mp4 etc) |
 
 `--filter` and `--encode` are intended to apply a video filter, typically a de-interlace and output encoder parameters.
 To escape filter / encoder options being incorrectly parsed by `render_datetime.py`, surround them by quotations, and insert a space before first parameter.

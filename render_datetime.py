@@ -91,6 +91,7 @@ def copy_exifdata(pathfrom: str, pathto:str):
 
 def render_datetime(input: str,
                     output: str,
+                    optext: Optional[str|None] = None,
                     sec_begin: Optional[float] = 1.0,
                     sec_len: Optional[float] = 4.0,
                     show_tc: Optional[bool] = False,
@@ -198,7 +199,14 @@ def render_datetime(input: str,
     # cf: https://video.stackexchange.com/questions/25568/what-is-the-correct-format-of-media-creation-time
     # Saving DV requires target. We assume here NTSC.
     datetime_s = f'{year_s}-{month_s}-{day_s} {hh_s}:{mm_s}:{ss_s}'
-    _, fileext = os.path.splitext(output)
+    root, fileext = os.path.splitext(output)
+
+    if optext is not None:
+        if not optext.startswith('.'):
+            optext = '.' + optext
+        output = root + optext
+        fileext = optext
+
     """
     kwargs_output = {} # {'c:a': 'copy', 'c:v': 'copy'}
     if fileext == '.dv':
@@ -280,15 +288,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument('-v', '--vpos', dest='text_vpos', metavar='t/b', choices=['t','b'], default="b", help='Render text at top or bottom')
     parser.add_argument('--font', metavar='path', default=None, help='Full path to a font file')
     parser.add_argument('-t', '--tc', dest='show_tc', action='store_true', default=False, help='Render timecode rather than time in HH:MM')
-    parser.add_argument('--date', dest='show_date', action=argparse.BooleanOptionalAction, default=True, help='Render date')
-    parser.add_argument('--time', dest='show_time', action=argparse.BooleanOptionalAction, default=True, help='Render time')
+    parser.add_argument('--date', dest='show_date', action=argparse.BooleanOptionalAction, default=True, help='Render date or not')
+    parser.add_argument('--time', dest='show_time', action=argparse.BooleanOptionalAction, default=True, help='Render time or not')
     parser.add_argument('--datetime', dest='datetime_opt', metavar='str', default='', help='Use given "yyyy-mm-dd[ HH:MM[:SS]]" as date/time')
     parser.add_argument('--filter', dest='args_filter', metavar='args', default='', help='Optional filter arguments. Ex " -vf yadif -mode send_frame" (Note space before -vf)')
-    parser.add_argument('--encode', dest='args_encode', metavar='args', default='', help='Optional encode arguments. Ex " -c:v libx264 -preset slow -crf 22 -c:a copy"')
-    parser.add_argument('-y', '--yes', action='store_true', default=False, help='Yes to overwrite.')
-    parser.add_argument('--ffmpeg', metavar='path', default=None, help='Full path to ffpmeg.')
+    parser.add_argument('--encode', dest='args_encode', metavar='args', default='', help='Optional encode arguments. Ex " -c:v libx264 -preset slow -crf 20 -c:a ac3"')
+    parser.add_argument('-y', '--yes', action='store_true', default=False, help='Yes to overwrite')
+    parser.add_argument('--ffmpeg', metavar='path', default=None, help='Full path to ffpmeg')
     parser.add_argument('--bug', action='store_true', default=False, help='Bug workaroound. Try it when "Assertion cur_size >= size"')
-    parser.add_argument('--simulate', action='store_true', default=False, help='Print generated ffmpeg command, no execution.')
+    parser.add_argument('--simulate', action='store_true', default=False, help='Print generated ffmpeg command, no execution')
+    parser.add_argument('-e', '--ext', dest='optext', metavar='ext', default=None, help='File extension for output (dv, mov, mp4 etc)')
     parser.add_argument('infiles', nargs='+', type=str, help='Input movie files')
     parser.add_argument('output', help='Output dir or file')
 
