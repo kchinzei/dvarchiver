@@ -33,24 +33,15 @@ import subprocess
 import datetime
 from typing import Any, Container, Iterable, List, Dict, Optional, Union
 
-def which(cmd: str) -> str:
-    p = subprocess.run(['which', cmd], check=True, text=True, stdout=subprocess.PIPE)
-    path = p.stdout.split('\n')[0]
-    if path == '' or 'not found' in path:
-        print(f'Required command {cmd} not found', file=sys.stderr)
-        return 1
-    return path
-
-mediainfo = which('mediainfo')
-mv = 'mv'
+mediainfo_path = 'mediainfo'
 formatstr = '{}-{}-{}_{}{}_{}' # replaced by yyyy, mm, dd, HH, MM, SS
 
 def get_mediainfo(path: str, field: str) -> str:
     '''
     Run mediainfo to get information of the movie in path.
     '''
-    global mediainfo
-    p = subprocess.run([mediainfo, f'--Output={field}', path], check=True, text=True, stdout=subprocess.PIPE)
+    global mediainfo_path
+    p = subprocess.run([mediainfo_path, f'--Output={field}', path], check=True, text=True, stdout=subprocess.PIPE)
     return p.stdout.split('\n')[0]
 
 def mv_datetime(path: str,
@@ -62,7 +53,6 @@ def mv_datetime(path: str,
     Internally uses mediainfo
     '''
     global formatstr
-    global mv
     
     # General / Recorded date appears like 2005-07-02 09:48:06 in localtime
     datetime_s = get_mediainfo(path, 'General;%Recorded_Date%')

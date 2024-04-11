@@ -39,21 +39,12 @@ from typing import Any, Container, Iterable, List, Dict, Optional, Union
 DEFAULT_FONTFILE = 'CRR55.TTF'
 EXIF_KEY_HINTS = ['CreateDate', 'ModifyDate', 'DateTimeOriginal', 'OffsetTime', 'Aperture', 'Gain', 'Exposure', 'WhiteBalance', 'ISO', 'ImageStabilization', 'FNumber', 'Shutter', 'FrameRate', 'Rotation', 'GPS', 'Make', 'Model', 'MajorBrand', 'MinorVersion', 'CompatibleBrands', 'FileFunctionFlags']
 
-
-def which(cmd: str) -> str:
-    p = subprocess.run(['which', cmd], check=True, text=True, stdout=subprocess.PIPE)
-    path = p.stdout.split('\n')[0]
-    if path == '' or 'not found' in path:
-        print(f'Required command {cmd} not found', file=sys.stderr)
-        return 1
-    return path
-
 cwd = os.path.dirname(os.path.realpath(__file__))
 
 # Global variable
 font_path = os.path.join(cwd, 'font', DEFAULT_FONTFILE)
-mediainfo_path = which('mediainfo')
-ffmpeg_path = which('ffmpeg')
+mediainfo_path = 'mediainfo'
+ffmpeg_path = 'ffmpeg'
 
 def get_mediainfo(path: str, field: str) -> str:
     '''
