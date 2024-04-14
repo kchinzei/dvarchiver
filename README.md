@@ -115,7 +115,8 @@ To escape filter / encoder options being incorrectly parsed by `render_datetime.
 Parameters start with `-` are parsed as switches for the filter and the encoder.
 Space is used as a delimiter to separate option switch and value(s).
 
-You can apply one video filer. It is not limited to de-interlace.
+You can apply one video filter.
+You can apply filters other than de-interlace.
 For video filters, see [Video Filters](https://ffmpeg.org/ffmpeg-filters.html#Video-Filters) of `ffmpeg` document.
 For encoders, see [Encoders](https://ffmpeg.org/ffmpeg-codecs.html#Encoders) of `ffmpeg` document.
 
