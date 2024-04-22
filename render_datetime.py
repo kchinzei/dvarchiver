@@ -28,13 +28,13 @@ Input movies are assumed in DV (digital video) format, but others acceptable.
 epilog_text = \
 '''
 Appling filters and encoders:
-`-vf` and `-af` apply a video or audio filter. You can apply more than two filters.
+`-vf` and `-af` apply video and audio filters. You can apply more than two filters.
   * Basically same grammer as ffmpeg command line argument.
   * Parameter is a pair of parameter name and its value connected by a '='.
   * Filter name and the first parameter connected by a '='.
     Ex: `scale=w=iw/2:h=ih/2`
   * If the value is omitted, it assumes True.
-    Ex: `crop=w=iw/2:excact`
+    Ex: `crop=w=iw/2:exact`
   * ffmpeg accepts omitting parameter names like `scale=iw/2:ih/2`.
     But here you **cannot omit** parameter names.
   * One `-vf` or `-af` argument contains one filter.
