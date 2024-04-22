@@ -102,7 +102,8 @@ Format of the output file is determined by the suffix of the output file name.
 | `--date`, `--no-date`  | Render date or not|
 | `--time`, `--no-time`  | Render time or not|
 | `--datetime str`       | Use given `"yyyy-mm-dd[ HH:MM[:SS]]"` as date/time |
-| `--filter args`        | Optional filter arguments. Ex `" -vf yadif -mode send_frame"` |
+| `-vf args`, `--vf args`| Video filter arguments. Ex `yadif=mode=send_frame` |
+| `-af args`, `--af args`| Audio filter arguments. Ex `afftdn=nr=10:nf=-40` |
 | `--encode args`        | Optional encode arguments. Ex `" -c:v libx264 -preset slow -crf 20 -c:a ac3"` |
 | `-y`, `--yes`          | Yes to overwrite |
 | `--ffmpeg path`        | Full path to ffpmeg |
@@ -110,15 +111,36 @@ Format of the output file is determined by the suffix of the output file name.
 | `--simulate`           | Print generated ffmpeg command, no execution |
 |`-e ext`, `--ext ext`   | File extension for output (dv, mov, mp4 etc) |
 
-`--filter` and `--encode` are intended to apply a video filter, typically a de-interlace and output encoder parameters.
-To escape filter / encoder options being incorrectly parsed by `render_datetime.py`, surround them by quotations, and insert a space before first parameter.
-Parameters start with `-` are parsed as switches for the filter and the encoder.
-Space is used as a delimiter to separate option switch and value(s).
+### Appling filters and encoders
 
-You can apply one video filter.
-You can apply filters other than de-interlace.
-For video filters, see [Video Filters](https://ffmpeg.org/ffmpeg-filters.html#Video-Filters) of `ffmpeg` document.
-For encoders, see [Encoders](https://ffmpeg.org/ffmpeg-codecs.html#Encoders) of `ffmpeg` document.
+`-vf` and `-af` apply a video or audio filter. You can apply more than two filters.
+
+  * Basically same grammer as ffmpeg command line argument.
+  * Parameter is a pair of parameter name and its value connected by a '='.
+  * Filter name and the first parameter connected by a '='.
+    Ex: `scale=w=iw/2:h=ih/2`
+  * If the value is omitted, it assumes True.
+    Ex: `crop=w=iw/2:excact`
+  * ffmpeg accepts omitting parameter names like `scale=iw/2:ih/2`.
+    But here you **cannot omit** parameter names.
+  * One `-vf` or `-af` argument forms one filter.
+  * To appy two or more filters, use multiple `-vf` or `-af` options.
+  * Spaces in arguments are removed even escaped by `\`.
+
+`--encode` specifies the output encode. It should be supplied only once.
+  * Argument needs to be quoted to avoid shell expands it incorrectly.
+  * Argument must starts with a space to avoid `-c:v` or `-c:a` confused from `-c`.
+
+#### Examples
+  * `-vf yadif=mode=send_frame` : deinterlace by yadif filter,  
+      `send_frame` keeps original frame rate.
+  * `-vf eq=gamma=1.3` : gamma correction.
+  * `-af afftdn` : FFT based noise reduction.
+  * `--encode " -c:v flibx264 -preset fast -c:a ac3"` : output in h264 with audio in ac3.
+
+For video filters, see [Video Filters](https://ffmpeg.org/ffmpeg-filters.html#Video-Filters).
+For audio filters, see [Audio Filters](https://ffmpeg.org/ffmpeg-filters.html#VAudio-Filters).
+For encoders, see [Encoders](https://ffmpeg.org/ffmpeg-codecs.html#Encoders) in ffmpeg documentation.
 
 #### Preriquisite
 
