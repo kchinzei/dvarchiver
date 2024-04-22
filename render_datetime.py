@@ -29,7 +29,7 @@ epilog_text = \
 '''
 Applying filters and encoders:
 `-vf` and `-af` apply video and audio filters. You can apply more than two filters.
-  * Basically same grammer as ffmpeg command line argument.
+  * Basically same grammar as ffmpeg command line argument.
   * Parameter is a pair of parameter name and its value connected by a '='.
   * Filter name and the first parameter connected by a '='.
     Ex: `scale=w=iw/2:h=ih/2`
@@ -38,7 +38,7 @@ Applying filters and encoders:
   * ffmpeg accepts omitting parameter names like `scale=iw/2:ih/2`.
     But here you **cannot omit** parameter names.
   * One `-vf` or `-af` argument contains one filter.
-  * To appy two or more filters, use multiple `-vf` or `-af` options.
+  * To apply two or more filters, use multiple `-vf` or `-af` options.
   * Spaces in arguments are removed even escaped by \\.
 `--encode` specifies the output encode. It should be supplied only once.
   * Argument needs to be quoted to avoid shell expands it incorrectly.
@@ -104,9 +104,9 @@ def parse_string_to_dict(input_string: str) -> Dict[str, Union[str,bool]]:
 
 def parse_filter_args_to_dict(input_string: str) -> Dict[str, Union[str,bool]]:
     '''
-    Parse ffmpeg style filter agruments to a dictionary.
+    Parse ffmpeg style filter arguments to a dictionary.
     Ex: 'scale=w=iw/2: h=ih/2' => {'name': 'scale', 'w': 'iw/2', 'h': 'ih/2'}
-    Ex: 'crop=w=iw/2: excact' => {'name': 'crop', 'w': 'iw/2', 'exact': True}
+    Ex: 'crop=w=iw/2: exact' => {'name': 'crop', 'w': 'iw/2', 'exact': True}
     ffmpeg filters accepts omitting parameter names e.g. 'scale=iw/2:ih/2' but here you cannot.
     '''
     parts = input_string.split('=', 1)
@@ -277,7 +277,7 @@ def render_datetime(input: str,
 
     # 6) ffmpeg bug workaround.
     # ffmpeg dv muxer sporadically fails around audio.
-    # As workaound, first write it in tmp file as wav.
+    # As workaround, first write it in tmp file as wav.
     # Then read it. Theoretically lossless.
     tmp_wav = None
     if bug:
@@ -347,8 +347,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     parser.add_argument('-s', '--size', dest='text_size', metavar='%', type=float, default="5", help='Font size in %%')
     parser.add_argument('-c', '--color', dest='text_color', metavar='str', default="white", help='Text color (yellow, etc)')
-    parser.add_argument('-b', '--begin', dest='sec_begin', metavar='sec', type=float, default=1.0, help='Begin rendring date/time, in second')
-    parser.add_argument('-l', '--len', dest='sec_len', metavar='sec', type=float, default=4.0, help='Duration of rendring date/time. No end if negative')
+    parser.add_argument('-b', '--begin', dest='sec_begin', metavar='sec', type=float, default=1.0, help='Begin rendering date/time, in second')
+    parser.add_argument('-l', '--len', dest='sec_len', metavar='sec', type=float, default=4.0, help='Duration of rendering date/time. No end if negative')
     parser.add_argument('-v', '--vpos', dest='text_vpos', metavar='t/b', choices=['t','b'], default="b", help='Render text at top or bottom')
     parser.add_argument('--font', metavar='path', default=None, help='Full path to a font file')
     parser.add_argument('-t', '--tc', dest='show_tc', action='store_true', default=False, help='Render timecode rather than time in HH:MM')
@@ -359,8 +359,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument('--af', '-af', dest='args_afilter', metavar='args', action='append', default=[], help='Audio filter. Ex "afftdn=nr=10:nf=-40"')
     parser.add_argument('--encode', dest='args_encode', metavar='args', default='', help='Encode arguments. Ex " -c:v libx264 -preset slow -c:a ac3"')
     parser.add_argument('-y', '--yes', action='store_true', default=False, help='Yes to overwrite')
-    parser.add_argument('--ffmpeg', metavar='path', default=None, help='Full path to ffpmeg')
-    parser.add_argument('--bug', action='store_true', default=False, help='Bug workaroound. Try it when "Assertion cur_size >= size"')
+    parser.add_argument('--ffmpeg', metavar='path', default=None, help='Full path to ffmpeg')
+    parser.add_argument('--bug', action='store_true', default=False, help='Bug workaround. Try it when "Assertion cur_size >= size"')
     parser.add_argument('--simulate', action='store_true', default=False, help='Print generated ffmpeg command, no execution')
     parser.add_argument('-e', '--ext', dest='optext', metavar='ext', default=None, help='File extension for output (dv, mov, mp4 etc)')
     parser.add_argument('infiles', nargs='+', type=str, help='Input movie files')
