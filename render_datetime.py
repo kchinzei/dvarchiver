@@ -21,7 +21,35 @@ REQUIRED_PYTHON_VERSION = (3, 9)
 
 '''
 Render date and time of the recording to movies with embedded date/timestamp.
-Input movies are assumed in DV (digital video) format.
+You can also provide date/time using '--datetime' option.
+Input movies are assumed in DV (digital video) format, but others acceptable.
+'''
+
+epilog_text = \
+'''
+Appling filters and encoders:
+`-vf` and `-af` apply a video or audio filter. You can apply more than two filters.
+  * Basically same grammer as ffmpeg command line argument.
+  * Parameter is a pair of parameter name and its value connected by a '='.
+  * Filter name and the first parameter connected by a '='.
+    Ex: `scale=w=iw/2:h=ih/2`
+  * If the value is omitted, it assumes True.
+    Ex: `crop=w=iw/2:excact`
+  * ffmpeg accepts omitting parameter names like `scale=iw/2:ih/2`.
+    But here you **cannot omit** parameter names.
+  * One `-vf` or `-af` argument contains one filter.
+  * To appy two or more filters, use multiple `-vf` or `-af` options.
+  * Spaces in arguments are removed even escaped by \\.
+`--encode` specifies the output encode. It should be supplied only once.
+  * Argument needs to be quoted to avoid shell expands it incorrectly.
+  * Argument must starts with a space to avoid `-c:v` or `-c:a` confused from `-c`.
+
+Examples:
+  -vf yadif=mode=send_frame : deinterlace by yadif filter,  
+      `send_frame` keeps original frame rate.
+  -vf eq=gamma=1.3 : gamma correction.
+  -af afftdn : FFT based noise reduction.
+  --encode " -c:v flibx264 -preset fast -c:a ac3" : output in h264 with audio in ac3.
 '''
 
 import argparse
@@ -73,6 +101,30 @@ def parse_string_to_dict(input_string: str) -> Dict[str, Union[str,bool]]:
 
     return parsed_dict
 
+
+def parse_filter_args_to_dict(input_string: str) -> Dict[str, Union[str,bool]]:
+    '''
+    Parse ffmpeg style filter agruments to a dictionary.
+    Ex: 'scale=w=iw/2: h=ih/2' => {'name': 'scale', 'w': 'iw/2', 'h': 'ih/2'}
+    Ex: 'crop=w=iw/2: excact' => {'name': 'crop', 'w': 'iw/2', 'exact': True}
+    ffmpeg filters accepts omitting parameter names e.g. 'scale=iw/2:ih/2' but here you cannot.
+    '''
+    parts = input_string.split('=', 1)
+    filter_name= parts[0].strip()
+    dictionary = {'name': filter_name}
+    if len(parts) == 2:
+        pairs = parts[1].split(':')
+        for pair in pairs:
+            pair = pair.strip()  # Remove leading and trailing spaces
+            if '=' in pair:
+                key, value = pair.split('=')
+                key, value = key.strip(), value.strip()
+            else:
+                key, value = pair.strip(), True
+            dictionary[key] = value
+    return dictionary
+
+
 def copy_exifdata(pathfrom: str, pathto:str):
     with ExifToolHelper() as etool:
         data = etool.get_metadata(pathfrom)
@@ -89,7 +141,8 @@ def render_datetime(input: str,
                     show_date: Optional[bool] = True,
                     show_time: Optional[bool] = True,
                     datetime_opt: Optional[str] = '',
-                    args_filter: Optional[str] = '',
+                    args_vfilter: Optional[List[str]] = [],
+                    args_afilter: Optional[List[str]] = [],
                     args_encode: Optional[str] = '',
                     text_size: Optional[int] = 5,
                     text_color: Optional[str] = 'white',
@@ -117,7 +170,7 @@ def render_datetime(input: str,
     # 2) Get information of the input movie
     # General / Recorded date appears like 2005-07-02 09:48:06 in localtime
     datetime_s = get_mediainfo(input, 'General;%Recorded_Date%')
-    date_s = hh_s = mm_s = ss_s = ''
+    date_s = hh_s = mm_s = ss_s = None
     m = re.match(r'^(\d\d\d\d)-(\d\d)-(\d\d)( (\d\d):(\d\d)(:(\d\d))?)?', datetime_opt)
     if m is not None:
         year_s = m.group(1)
@@ -126,6 +179,12 @@ def render_datetime(input: str,
         hh_s = m.group(5)
         mm_s = m.group(6)
         ss_s = m.group(8)
+        if hh_s is None:
+            hh_s = '12'
+        if mm_s is None:
+            mm_s = '00'
+        if ss_s is None:
+            ss_s = '00'
     else:
         m = re.match(r'^(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)', datetime_s)
         if m is None:
@@ -178,12 +237,8 @@ def render_datetime(input: str,
         kwargs_time |= {'timecode': f'{hh_s}:{mm_s}:{ss_s};00', 'rate': rate, 'tc24hmax': True, 'text': ''}
 
     # 3) Filters if optionally specified
-    # Deinterlace, audio filters apply first.
-    # ffmpeg.filter() requires a filter name is explicitly given.
-    filter_name = 'null'
-    kwargs_filter = parse_string_to_dict(args_filter)
-    if 'vf' in kwargs_filter:
-        filter_name = kwargs_filter.pop('vf')
+    # --> move to the ffmpeg parser
+
     # 4) Special workaround for DV
     # ffmpeg creation_time convert time to UTC. This is fine, but But Sony DV format seems assuming localtime.
     # Need 'Z' to prevent ffmpeg converting local timezone to UTC.
@@ -238,13 +293,27 @@ def render_datetime(input: str,
         )
         audio = ffmpeg.input(tmp_wav, **{'f': 's16le', 'ar': arate, 'ac': 2}).audio
 
-    result_stream = (
-        ffmpeg
-        .filter(video, filter_name, **kwargs_filter)
-        .drawtext(x='w*0.02', y=ypos, **kwargs_date)
-        .drawtext(x='(w-tw)-(w*0.02)', y=ypos, **kwargs_time)
-        .output(audio, output, **kwargs_output)
-    )
+    # 7) Build filter chain.
+    for argstr in args_vfilter:
+        # Apply filters before drawtext
+        # ffmpeg.filter() requires a filter name is explicitly given.
+        # kwargs_filter = parse_string_to_dict(argstr)
+        kwargs_filter = parse_filter_args_to_dict(argstr)
+        filter_name = kwargs_filter.pop('name', None)
+        if filter_name is not None:
+            video = ffmpeg.filter(video, filter_name, **kwargs_filter)
+    if show_date:
+        video = ffmpeg.drawtext(video, x='w*0.02', y=ypos, **kwargs_date)
+    if show_time:
+        video = ffmpeg.drawtext(video, x='(w-tw)-(w*0.02)', y=ypos, **kwargs_time)
+    for argstr in args_afilter:
+        kwargs_filter = parse_filter_args_to_dict(argstr)
+        filter_name = kwargs_filter.pop('name', None)
+        if filter_name is not None:
+            video = ffmpeg.filter(audio, filter_name, **kwargs_filter)
+    result_stream = ffmpeg.output(video, audio, output, **kwargs_output)
+
+    # 8) Do it or simulate it.
     retval = 0
     if simulate:
         args = ffmpeg.compile(result_stream, cmd=ffmpeg_path, overwrite_output=yes)
@@ -261,16 +330,20 @@ def render_datetime(input: str,
         os.remove(tmp_wav)
     return retval
 
+
 def main(argv: Optional[List[str]] = None) -> int:
     global ffmpeg_path
     global font_path
-    
+    global epilog_text
+
     if sys.version_info < REQUIRED_PYTHON_VERSION:
         print(f'Requires python {REQUIRED_PYTHON_VERSION} or newer.', file=sys.stderr)
         return 1
 
     parser = argparse.ArgumentParser(description='Render date/time to the given movie files',
-                                                 fromfile_prefix_chars='+')
+                                     fromfile_prefix_chars='+',
+                                     formatter_class=argparse.RawTextHelpFormatter,
+                                     epilog=epilog_text)
 
     parser.add_argument('-s', '--size', dest='text_size', metavar='%', type=float, default="5", help='Font size in %%')
     parser.add_argument('-c', '--color', dest='text_color', metavar='str', default="white", help='Text color (yellow, etc)')
@@ -282,8 +355,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument('--date', dest='show_date', action=argparse.BooleanOptionalAction, default=True, help='Render date or not')
     parser.add_argument('--time', dest='show_time', action=argparse.BooleanOptionalAction, default=True, help='Render time or not')
     parser.add_argument('--datetime', dest='datetime_opt', metavar='str', default='', help='Use given "yyyy-mm-dd[ HH:MM[:SS]]" as date/time')
-    parser.add_argument('--filter', dest='args_filter', metavar='args', default='', help='Optional filter arguments. Ex " -vf yadif -mode send_frame" (Note space before -vf)')
-    parser.add_argument('--encode', dest='args_encode', metavar='args', default='', help='Optional encode arguments. Ex " -c:v libx264 -preset slow -crf 20 -c:a ac3"')
+    parser.add_argument('--vf', '-vf', dest='args_vfilter', metavar='args', action='append', default=[], help='Video filter. Ex "scale=w=iw/2:h=ih/2"')
+    parser.add_argument('--af', '-af', dest='args_afilter', metavar='args', action='append', default=[], help='Audio filter. Ex "afftdn=nr=10:nf=-40"')
+    parser.add_argument('--encode', dest='args_encode', metavar='args', default='', help='Encode arguments. Ex " -c:v libx264 -preset slow -c:a ac3"')
     parser.add_argument('-y', '--yes', action='store_true', default=False, help='Yes to overwrite')
     parser.add_argument('--ffmpeg', metavar='path', default=None, help='Full path to ffpmeg')
     parser.add_argument('--bug', action='store_true', default=False, help='Bug workaroound. Try it when "Assertion cur_size >= size"')
