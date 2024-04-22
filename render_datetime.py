@@ -27,7 +27,7 @@ Input movies are assumed in DV (digital video) format, but others acceptable.
 
 epilog_text = \
 '''
-Appling filters and encoders:
+Applying filters and encoders:
 `-vf` and `-af` apply video and audio filters. You can apply more than two filters.
   * Basically same grammer as ffmpeg command line argument.
   * Parameter is a pair of parameter name and its value connected by a '='.

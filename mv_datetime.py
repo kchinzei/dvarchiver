@@ -49,7 +49,7 @@ def mv_datetime(path: str,
                 yes: Optional[bool] = False,
                 **kwargs: Any):
     '''
-    Rename a movie file using Recoeded Date.
+    Rename a movie file using Recorded Date.
     Internally uses mediainfo
     '''
     global formatstr
@@ -101,7 +101,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f'Requires python {REQUIRED_PYTHON_VERSION} or newer.', file=sys.stderr)
         return 1
 
-    parser = argparse.ArgumentParser(description='Rename (mv) movie files using Recoeded Date field',
+    parser = argparse.ArgumentParser(description='Rename (mv) movie files using Recorded Date field',
                                                  fromfile_prefix_chars='+')
 
     parser.add_argument('--format', metavar='str', default=None, help=f'Custom format string, default="{formatstr}"')
