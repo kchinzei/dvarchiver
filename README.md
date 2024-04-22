@@ -106,7 +106,7 @@ Format of the output file is determined by the suffix of the output file name.
 | `-af args`, `--af args`| Audio filter arguments. Ex `afftdn=nr=10:nf=-40` |
 | `--encode args`        | Optional encode arguments. Ex `" -c:v libx264 -preset slow -crf 20 -c:a ac3"` |
 | `-y`, `--yes`          | Yes to overwrite |
-| `--ffmpeg path`        | Full path to ffpmeg |
+| `--ffmpeg path`        | Full path to ffmpeg |
 | `--bug`                | Bug workaroound. Try it when "Assertion cur_size >= size" |
 | `--simulate`           | Print generated ffmpeg command, no execution |
 |`-e ext`, `--ext ext`   | File extension for output (dv, mov, mp4 etc) |
