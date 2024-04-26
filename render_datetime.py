@@ -40,9 +40,10 @@ Applying filters and encoders:
   * One `-vf` or `-af` argument contains one filter.
   * To apply two or more filters, use multiple `-vf` or `-af` options.
   * Spaces in arguments are removed even escaped by \\.
-`--encode` specifies the output encode. It should be supplied only once.
-  * Argument needs to be quoted to avoid shell expands it incorrectly.
-  * Argument must starts with a space to avoid `-c:v` or `-c:a` confused from `-c`.
+
+`--encode` specifies the output encoder. It should be supplied only once.
+  * Argument needs to be quoted to avoid shell unwantedly expands it.
+  * Argument must start with a space to avoid `-c:v` or `-c:a` confused from `-c`.
 
 Examples:
   -vf yadif=mode=send_frame : deinterlace by yadif filter,  
@@ -55,32 +56,25 @@ Examples:
 import argparse
 import sys
 import os
-import re
 import tempfile
-import subprocess
-import datetime
+from datetime import datetime, timedelta
 import shlex
 import ffmpeg # Need ffmpeg-python (not other similar ones)
-from exiftool import ExifToolHelper
+from _util import get_mediainfo, copy_exifdata, get_datetime_fromstr, get_datetime_fromfile
 from typing import Any, Container, Iterable, List, Dict, Optional, Union
 
 DEFAULT_FONTFILE = 'CRR55.TTF'
-EXIF_KEY_HINTS = ['CreateDate', 'ModifyDate', 'DateTimeOriginal', 'OffsetTime', 'Aperture', 'Gain', 'Exposure', 'WhiteBalance', 'ISO', 'ImageStabilization', 'FNumber', 'Shutter', 'FrameRate', 'Rotation', 'GPS', 'Make', 'Model', 'MajorBrand', 'MinorVersion', 'CompatibleBrands', 'FileFunctionFlags']
 
 cwd = os.path.dirname(os.path.realpath(__file__))
 
 # Global variable
 font_path = os.path.join(cwd, 'font', DEFAULT_FONTFILE)
-mediainfo_path = 'mediainfo'
 ffmpeg_path = 'ffmpeg'
 
-def get_mediainfo(path: str, field: str) -> str:
-    '''
-    Run mediainfo to get information of the movie in path.
-    '''
-    global mediainfo_path
-    p = subprocess.run([mediainfo_path, f'--Output={field}', path], check=True, text=True, stdout=subprocess.PIPE)
-    return p.stdout.split('\n')[0]
+
+def datetime2strs(dt: datetime) -> tuple[str, str, str, str, str, str]:
+    return f'{dt.year}', f'{dt.month:02}', f'{dt.day:02}', f'{dt.hour:02}', f'{dt.minute:02}', f'{dt.second:02}'
+
 
 def parse_string_to_dict(input_string: str) -> Dict[str, Union[str,bool]]:
     # Split the input string by whitespace
@@ -125,18 +119,12 @@ def parse_filter_args_to_dict(input_string: str) -> Dict[str, Union[str,bool]]:
     return dictionary
 
 
-def copy_exifdata(pathfrom: str, pathto:str):
-    with ExifToolHelper() as etool:
-        data = etool.get_metadata(pathfrom)
-        datatocopy = {key:val for key, val in data[0].items() for keypart in EXIF_KEY_HINTS if keypart in key}
-        etool.set_tags(pathto, datatocopy)
-
-
 def render_datetime(input: str,
                     output: str,
                     optext: Optional[str|None] = None,
                     sec_begin: Optional[float] = 1.0,
                     sec_len: Optional[float] = 4.0,
+                    offset: Optional[str|None] = None,
                     show_tc: Optional[bool] = False,
                     show_date: Optional[bool] = True,
                     show_time: Optional[bool] = True,
@@ -169,38 +157,13 @@ def render_datetime(input: str,
 
     # 2) Get information of the input movie
     # General / Recorded date appears like 2005-07-02 09:48:06 in localtime
-    datetime_s = get_mediainfo(input, 'General;%Recorded_Date%')
-    date_s = hh_s = mm_s = ss_s = None
-    m = re.match(r'^(\d\d\d\d)-(\d\d)-(\d\d)( (\d\d):(\d\d)(:(\d\d))?)?', datetime_opt)
-    if m is not None:
-        year_s = m.group(1)
-        month_s = m.group(2)
-        day_s = m.group(3)
-        hh_s = m.group(5)
-        mm_s = m.group(6)
-        ss_s = m.group(8)
-        if hh_s is None:
-            hh_s = '12'
-        if mm_s is None:
-            mm_s = '00'
-        if ss_s is None:
-            ss_s = '00'
-    else:
-        m = re.match(r'^(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)', datetime_s)
-        if m is None:
-            print(f'Fail to get recorded date from {input} and you did not provide datetime as option.', file=sys.stderr)
-            return 1
-        year_s = m.group(1)
-        month_s = m.group(2)
-        day_s = m.group(3)
-        hh_s = m.group(4)
-        mm_s = m.group(5)
-        ss_s = m.group(6)
-    if show_time and hh_s is None:
-        print('If you want to render time, you must provide it as option', file=sys.stderr)
+    dt = get_datetime_fromstr(datetime_opt)
+    if dt is None:
+        dt = get_datetime_fromfile(input, offset)
+    if dt is None:
+        print(f'Fail to get recorded date from {input} and you did not provide datetime as option.', file=sys.stderr)
         return 1
-    if ss_s is None:
-        show_tc = False
+    y0, m0, d0, hh0, mm0, ss0 = datetime2strs(dt)
 
     # Prepare date / time values for drawtext
     # 1) enable to limit rendering period
@@ -223,18 +186,12 @@ def render_datetime(input: str,
 
     # 2) Text for drawtext
     # Need clock advanced by sec_begin.
-    d = datetime.datetime(int(year_s), int(month_s), int(day_s), int(hh_s), int(mm_s), int(ss_s)) + \
-        datetime.timedelta(seconds = sec_begin)
-    year_s1 = f'{d.year}'
-    month_s1 = f'{d.month:02}'
-    day_s1 = f'{d.day:02}'
-    hh_s1 = f'{d.hour:02}'
-    mm_s1 = f'{d.minute:02}'
-    kwargs_date = {'text': f'{year_s1}-{month_s1}-{day_s1}' if show_date else ''} | kwargs_enable
-    kwargs_time = {'text': f'{hh_s1}:{mm_s1}' if show_time else ''} | kwargs_enable
+    y1, m1, d1, hh1, mm1, ss1 = datetime2strs(dt + timedelta(seconds = sec_begin))
+    kwargs_date = {'text': f'{y1}-{m1}-{d1}' if show_date else ''} | kwargs_enable
+    kwargs_time = {'text': f'{hh1}:{mm1}' if show_time else ''} | kwargs_enable
     if show_time and show_tc:
         rate = float(get_mediainfo(input, 'General;%FrameRate%'))
-        kwargs_time |= {'timecode': f'{hh_s}:{mm_s}:{ss_s};00', 'rate': rate, 'tc24hmax': True, 'text': ''}
+        kwargs_time |= {'timecode': f'{hh0}:{mm0}:{ss0};00', 'rate': rate, 'tc24hmax': True, 'text': ''}
 
     # 3) Filters if optionally specified
     # --> move to the ffmpeg parser
@@ -244,7 +201,7 @@ def render_datetime(input: str,
     # Need 'Z' to prevent ffmpeg converting local timezone to UTC.
     # cf: https://video.stackexchange.com/questions/25568/what-is-the-correct-format-of-media-creation-time
     # Saving DV requires target. We assume here NTSC.
-    datetime_s = f'{year_s}-{month_s}-{day_s} {hh_s}:{mm_s}:{ss_s}'
+    datetime_s = f'{y0}-{m0}-{d0} {hh0}:{mm0}:{ss0}'
     root, fileext = os.path.splitext(output)
 
     if optext is not None:
@@ -253,16 +210,6 @@ def render_datetime(input: str,
         output = root + optext
         fileext = optext
 
-    """
-    kwargs_output = {} # {'c:a': 'copy', 'c:v': 'copy'}
-    if fileext == '.dv':
-        kwargs_output |= {'target': 'ntsc-dv'}
-        kwargs_output |= {'metadata': f'creation_time={datetime_s}Z'}
-    else:
-        kwargs_output |= {'c:v': 'libx264', 'preset': 'fast', 'crf': 23}
-        kwargs_output |= {'metadata': f'creation_time={datetime_s}'}
-    kwargs_output |= parse_string_to_dict(args_encode) # may override c:v etc.
-    """
     kwargs_output = parse_string_to_dict(args_encode)
     if fileext == '.dv':
         kwargs_output |= {'metadata': f'creation_time={datetime_s}Z', 'target': 'ntsc-dv'}
@@ -355,6 +302,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument('--date', dest='show_date', action=argparse.BooleanOptionalAction, default=True, help='Render date or not')
     parser.add_argument('--time', dest='show_time', action=argparse.BooleanOptionalAction, default=True, help='Render time or not')
     parser.add_argument('--datetime', dest='datetime_opt', metavar='str', default='', help='Use given "yyyy-mm-dd[ HH:MM[:SS]]" as date/time')
+    parser.add_argument('--offset', metavar='[-]hh:mm', default=None, help='Offset time. Ex: "8:00"')
     parser.add_argument('--vf', '-vf', dest='args_vfilter', metavar='args', action='append', default=[], help='Video filter. Ex "scale=w=iw/2:h=ih/2"')
     parser.add_argument('--af', '-af', dest='args_afilter', metavar='args', action='append', default=[], help='Audio filter. Ex "afftdn=nr=10:nf=-40"')
     parser.add_argument('--encode', dest='args_encode', metavar='args', default='', help='Encode arguments. Ex " -c:v libx264 -preset slow -c:a ac3"')

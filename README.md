@@ -86,6 +86,7 @@ You can manually provide date/time.
 | `-h`, `--help`    | show this help message and exit |
 | `--format str`    | Custom format string, default=`"{}-{}-{}_{}{}_{}"` |
 | `--datetime str`  | Use given `"yyyy-mm-dd[ HH:MM[:SS]]"` as date/time |
+| `--offset str`    | Apply offset to embedded datetime. Ex: " -8:00"    |
 | `-y`, `--yes`     | Yes to overwrite |
 
 ```bash
@@ -105,10 +106,11 @@ Format of the output file is determined by the suffix of the output file name.
 | `-l sec`, `--len sec`  | Duration of rendering date/time. No end if negative |
 | `-v t/b`, `--vpos t/b` | Render text at top or bottom |
 | `--font path`          | Full path to a font file |
-| `-t`, `--tc`          | Render timecode rather than HH:MM |
+| `-t`, `--tc`           | Render timecode rather than HH:MM |
 | `--date`, `--no-date`  | Render date or not|
 | `--time`, `--no-time`  | Render time or not|
 | `--datetime str`       | Use given `"yyyy-mm-dd[ HH:MM[:SS]]"` as date/time |
+| `--offset str`         | Apply offset to embedded datetime. Ex: " -8:00"    |
 | `-vf args`, `--vf args`| Video filter arguments. Ex `yadif=mode=send_frame` |
 | `-af args`, `--af args`| Audio filter arguments. Ex `afftdn=nr=10:nf=-40` |
 | `--encode args`        | Optional encode arguments. Ex `" -c:v libx264 -preset slow -crf 20 -c:a ac3"` |
@@ -117,6 +119,10 @@ Format of the output file is determined by the suffix of the output file name.
 | `--bug`                | Bug workaround. Try it when "Assertion cur_size >= size" |
 | `--simulate`           | Print generated ffmpeg command, no execution |
 |`-e ext`, `--ext ext`   | File extension for output (dv, mov, mp4 etc) |
+
+`--offset` applies to the rendered date/time and timecode stream.
+But it does not modify the original date/time in the video stream.
+It also does not modify the related EXIF data fields.
 
 ### Applying filters and encoders
 
@@ -161,7 +167,7 @@ For encoders, see [Encoders](https://ffmpeg.org/ffmpeg-codecs.html#Encoders) in 
 
 - OS: macOS 17.3 and 17.4.1 (Sonoma)
 - python 3.11.9 and 3.12.2
-- ffmpeg 6.1.1
+- ffmpeg 6.1.1 and 7.0.0
 - ffmpeg-dl 5.1.4
 - ffmpeg-python 0.2.0
 - dvresque 24.01
@@ -177,9 +183,9 @@ Sporadically dv muxer of ffmpeg fails with "Assertion cur_size >= size..." messa
 When it happens, try `--bug`.
 - `render_datetime.py` needs FPS (frame-per-sec) information to render timecode.
 It uses FPS obtained from the input movie.
-If `fps` filter is applied to modify FPS, the timecode will be incorrectly rendered.
+If a filter that modifies FPS applied, the timecode will be incorrectly rendered.
 Some de-interlace filters can also double FPS.
-If it matters, add `-mode send_frame`.
+If it matters, add `mode=send_frame`.
 - `render_datetime.py` renders date/time or timecode using Recorded Date which is found at the beginning of the video clip.
 It assumes the video clip is continuous throughout rendering.
 If two or more video clips are concatenated, it doesn't know the border of the video clips, that may result in wrong rendering.

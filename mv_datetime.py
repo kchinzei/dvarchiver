@@ -28,24 +28,20 @@ Input movies are assumed to have Recorded Date field found by 'mediainfo'.
 import argparse
 import sys
 import os
-import re
-import subprocess
-import datetime
+from datetime import datetime
+from _util import get_mediainfo, get_datetime_fromstr, get_datetime_fromfile
 from typing import Any, Container, Iterable, List, Dict, Optional, Union
 
-mediainfo_path = 'mediainfo'
 formatstr = '{}-{}-{}_{}{}_{}' # replaced by yyyy, mm, dd, HH, MM, SS
 
-def get_mediainfo(path: str, field: str) -> str:
-    '''
-    Run mediainfo to get information of the movie in path.
-    '''
-    global mediainfo_path
-    p = subprocess.run([mediainfo_path, f'--Output={field}', path], check=True, text=True, stdout=subprocess.PIPE)
-    return p.stdout.split('\n')[0]
+
+def datetime2strs(dt: datetime) -> tuple[str, str, str, str, str, str]:
+    return f'{dt.year}', f'{dt.month:02}', f'{dt.day:02}', f'{dt.hour:02}', f'{dt.minute:02}', f'{dt.second:02}'
+
 
 def mv_datetime(path: str,
                 datetime_opt: Optional[str] = '',
+                offset: Optional[str|None] = None,
                 yes: Optional[bool] = False,
                 **kwargs: Any):
     '''
@@ -55,32 +51,18 @@ def mv_datetime(path: str,
     global formatstr
     
     # General / Recorded date appears like 2005-07-02 09:48:06 in localtime
-    datetime_s = get_mediainfo(path, 'General;%Recorded_Date%')
-    year_s = month_s = day_s = hh_s = mm_s = ss_s = ''
-    m = re.match(r'^(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d)(:(\d\d))?', datetime_opt)
-    if m is not None:
-        year_s = m.group(1)
-        month_s = m.group(2)
-        day_s = m.group(3)
-        hh_s = m.group(5)
-        mm_s = m.group(6)
-        ss_s = m.group(8)
-    else:
-        m = re.match(r'^(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)', datetime_s)
-        if m is None:
-            print(f'Fail to get recorded date from {path} and you did not provide datetime as option.', file=sys.stderr)
-            return 1
-        year_s = m.group(1)
-        month_s = m.group(2)
-        day_s = m.group(3)
-        hh_s = m.group(4)
-        mm_s = m.group(5)
-        ss_s = m.group(6)
+    dt = get_datetime_fromstr(datetime_opt)
+    if dt is None:
+        dt = get_datetime_fromfile(input, offset)
+    if dt is None:
+        print(f'Fail to get recorded date from {input} and you did not provide datetime as option.', file=sys.stderr)
+        return 1
+    y0, m0, d0, hh0, mm0, ss0 = datetime2strs(dt)
 
     # Rename
     dirpath = os.path.dirname(path)
     _, fileext = os.path.splitext(path)
-    to = os.path.join(dirpath, formatstr.format(year_s, month_s, day_s, hh_s, mm_s, ss_s) + fileext)
+    to = os.path.join(dirpath, formatstr.format(y0, m0, d0, hh0, mm0, ss0) + fileext)
     if yes:
         os.replace(path, to)
     else:
@@ -89,7 +71,7 @@ def mv_datetime(path: str,
     #print(f'{mv} {'-f' if yes else '-i'} {path} {to}')
 
     # Set modify timestamp
-    d = datetime.datetime(int(year_s), int(month_s), int(day_s), int(hh_s), int(mm_s), int(ss_s))
+    d = datetime.datetime(int(y0), int(m0), int(d0), int(hh0), int(mm0), int(ss0))
     cr_time = d.timestamp()
     os.utime(to, (cr_time, cr_time))
 
@@ -106,6 +88,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     parser.add_argument('--format', metavar='str', default=None, help=f'Custom format string, default="{formatstr}"')
     parser.add_argument('--datetime', dest='datetime_opt', metavar='str', type=str, default='', help='Use given "yyyy-mm-dd[ HH:MM[:SS]]" as date/time')
+    parser.add_argument('--offset', metavar='[-]hh:mm', default=None, help='Offset time. Ex: "8:00"')
     parser.add_argument('-y', '--yes', action='store_true', default=False, help='Yes to overwrite.')
     parser.add_argument('infiles', nargs='+', type=str, help='Input movie files')
 
