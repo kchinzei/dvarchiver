@@ -60,7 +60,7 @@ import tempfile
 from datetime import datetime, timedelta
 import shlex
 import ffmpeg # Need ffmpeg-python (not other similar ones)
-from _util import get_mediainfo, copy_exifdata, get_datetime_fromstr, get_datetime_fromfile
+from _util import get_mediainfo, copy_exifdata, append_exifcomment, get_datetime_fromstr, get_datetime_fromfile
 from typing import Any, Container, Iterable, List, Dict, Optional, Union
 
 DEFAULT_FONTFILE = 'CRR55.TTF'
@@ -138,6 +138,7 @@ def render_datetime(input: str,
                     yes: Optional[bool] = False,
                     bug: Optional[bool] = False,
                     simulate: Optional[bool] = False,
+                    arg0: Optional[str] = '',
                     **kwargs: Any):
     '''
     Render date/time to a movie file.
@@ -228,8 +229,9 @@ def render_datetime(input: str,
     # Then read it. Theoretically lossless.
     tmp_wav = None
     if bug:
-        arate = get_mediainfo(input, 'Audio;%SamplingRate% ') # a space to split...
-        arate = arate.split(' ')[0]
+        #arate = get_mediainfo(input, 'Audio;%SamplingRate% ') # a space to split...
+        #arate = arate.split(' ')[0]
+        arate = 48000 # Resample outside the dv muxer seems necessary since ffmpeg 7.
         temp_file = tempfile.mkstemp(suffix='.wav')
         os.close(temp_file[0]) # We don't write from python.
         tmp_wav = temp_file[1]
@@ -238,7 +240,8 @@ def render_datetime(input: str,
             .output(audio, tmp_wav, **{'f': 's16le', 'ar': arate, 'ac': 2})
             .run(cmd=ffmpeg_path, quiet=True, overwrite_output=yes, capture_stderr=True)
         )
-        audio = ffmpeg.input(tmp_wav, **{'f': 's16le', 'ar': arate, 'ac': 2}).audio
+        #audio = ffmpeg.input(tmp_wav, **{'f': 's16le', 'ar': arate, 'ac': 2}).audio # setting -ar here fails. why?
+        audio = ffmpeg.input(tmp_wav, **{'f': 's16le', 'ac': 2}).audio
 
     # 7) Build filter chain.
     for argstr in args_vfilter:
@@ -269,7 +272,9 @@ def render_datetime(input: str,
         process = ffmpeg.run_async(result_stream, cmd=ffmpeg_path, quiet=True, overwrite_output=yes, pipe_stderr=True)
         _, stderr = process.communicate()
         if process.returncode == 0:
-            copy_exifdata(input, output)
+            if fileext != '.dv':
+                copy_exifdata(input, output)
+                append_exifcomment(output, f'{datetime.now().isoformat(timespec="seconds")} : {arg0} ')
         else:
             print(f' -- stderr: {stderr.decode('utf-8')}', file=sys.stderr)
         retval = process.returncode
@@ -315,7 +320,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument('output', help='Output dir or file')
 
     args = parser.parse_args(args=argv)
-    args.arg0 = ' '.join(argparse._sys.argv)
+    args.arg0 = ' '.join([x.replace(' ', '\\ ') for x in argparse._sys.argv])
 
     if args.font is not None:
         font_path = args.font

@@ -24,7 +24,10 @@ from datetime import datetime, timedelta
 from exiftool import ExifToolHelper
 from typing import Any, Container, Iterable, List, Dict, Optional, Union
 
-EXIF_KEY_HINTS = ['CreateDate', 'ModifyDate', 'DateTimeOriginal', 'OffsetTime', 'Aperture', 'Gain', 'Exposure', 'WhiteBalance', 'ISO', 'ImageStabilization', 'FNumber', 'Shutter', 'FrameRate', 'Rotation', 'GPS', 'Make', 'Model', 'MajorBrand', 'MinorVersion', 'CompatibleBrands', 'FileFunctionFlags']
+#import logging
+#logging.basicConfig(level=logging.DEBUG)
+
+EXIF_KEY_HINTS = ['CreateDate', 'ModifyDate', 'DateTimeOriginal', 'OffsetTime', 'Aperture', 'Gain', 'Exposure', 'WhiteBalance', 'ISO', 'ImageStabilization', 'FNumber', 'Shutter', 'FrameRate', 'Rotation', 'GPS', 'Make', 'Model', 'MajorBrand', 'MinorVersion', 'CompatibleBrands', 'FileFunctionFlags', 'UserComment']
 
 
 def get_mediainfo(path: str, field: str) -> str:
@@ -43,11 +46,22 @@ def get_exifdata(path: str, field: str) -> str|None:
             return tags[0]
     return None
 
+def set_exifdata(path: str, field: str, val: str):
+    with ExifToolHelper() as etool:
+        etool.set_tags(path, {field: val})
+
 def copy_exifdata(pathfrom: str, pathto:str):
     with ExifToolHelper() as etool:
         data = etool.get_metadata(pathfrom)
         datatocopy = {key:val for key, val in data[0].items() for keypart in EXIF_KEY_HINTS if keypart in key}
         etool.set_tags(pathto, datatocopy)
+
+
+def append_exifcomment(pathto: str, text:str):
+    comment = get_exifdata(pathto, 'UserComment')
+    if comment is None:
+        comment = ''
+    set_exifdata(pathto, 'UserComment', f'{text}\n{comment}')
 
 
 def get_datetime_fromstr(datetime_str: str) -> datetime|None:
