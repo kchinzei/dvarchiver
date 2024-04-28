@@ -92,7 +92,7 @@ def get_datetime_fromfile(path: str, offset: Optional[str] = None) -> datetime|N
         if dt is None:
             return None
     if offset is not None:
-        m = re.fullmatch(r'([+|-]?)(0?\d):(\d\d)(:(\d\d))?', offset.strip())
+        m = re.fullmatch(r'([+|-]?)(\d?\d):(\d\d)(:(\d\d))?', offset.strip())
         if m is not None:
             polarity = m.group(1)
             hh_s = m.group(2)
@@ -105,4 +105,5 @@ def get_datetime_fromfile(path: str, offset: Optional[str] = None) -> datetime|N
                 dt -= delta
             else:
                 dt += delta
+            print(f'{delta=}')
     return dt

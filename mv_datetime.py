@@ -53,7 +53,7 @@ def mv_datetime(path: str,
     # General / Recorded date appears like 2005-07-02 09:48:06 in localtime
     dt = get_datetime_fromstr(datetime_opt)
     if dt is None:
-        dt = get_datetime_fromfile(input, offset)
+        dt = get_datetime_fromfile(path, offset)
     if dt is None:
         print(f'Fail to get recorded date from {input} and you did not provide datetime as option.', file=sys.stderr)
         return 1
@@ -71,8 +71,7 @@ def mv_datetime(path: str,
     #print(f'{mv} {'-f' if yes else '-i'} {path} {to}')
 
     # Set modify timestamp
-    d = datetime.datetime(int(y0), int(m0), int(d0), int(hh0), int(mm0), int(ss0))
-    cr_time = d.timestamp()
+    cr_time = dt.timestamp()
     os.utime(to, (cr_time, cr_time))
 
     
