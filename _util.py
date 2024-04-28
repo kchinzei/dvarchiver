@@ -105,5 +105,4 @@ def get_datetime_fromfile(path: str, offset: Optional[str] = None) -> datetime|N
                 dt -= delta
             else:
                 dt += delta
-            print(f'{delta=}')
     return dt
