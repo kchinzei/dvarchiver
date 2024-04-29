@@ -29,19 +29,14 @@ import argparse
 import sys
 import os
 from datetime import datetime
-from _util import get_mediainfo, get_datetime_fromstr, get_datetime_fromfile
+from _util import get_mediainfo, get_datetime_fromstr, get_datetime_fromfile, datetime2fname, guess_offset
 from typing import Any, Container, Iterable, List, Dict, Optional, Union
-
-formatstr = '{}-{}-{}_{}{}_{}' # replaced by yyyy, mm, dd, HH, MM, SS
-
-
-def datetime2strs(dt: datetime) -> tuple[str, str, str, str, str, str]:
-    return f'{dt.year}', f'{dt.month:02}', f'{dt.day:02}', f'{dt.hour:02}', f'{dt.minute:02}', f'{dt.second:02}'
 
 
 def mv_datetime(path: str,
                 datetime_opt: Optional[str] = '',
                 offset: Optional[str|None] = None,
+                simulate: Optional[bool] = False,
                 yes: Optional[bool] = False,
                 **kwargs: Any):
     '''
@@ -57,22 +52,22 @@ def mv_datetime(path: str,
     if dt is None:
         print(f'Fail to get recorded date from {input} and you did not provide datetime as option.', file=sys.stderr)
         return 1
-    y0, m0, d0, hh0, mm0, ss0 = datetime2strs(dt)
+    fstem = datetime2fname(dt)
 
     # Rename
     dirpath = os.path.dirname(path)
     _, fileext = os.path.splitext(path)
-    to = os.path.join(dirpath, formatstr.format(y0, m0, d0, hh0, mm0, ss0) + fileext)
-    if yes:
-        os.replace(path, to)
+    to = os.path.join(dirpath, fstem + fileext)
+    if simulate:
+        print(f'{path}  ==>  {to}')
     else:
-        os.rename(path, to)
-    # todo: error handling
-    #print(f'{mv} {'-f' if yes else '-i'} {path} {to}')
-
-    # Set modify timestamp
-    cr_time = dt.timestamp()
-    os.utime(to, (cr_time, cr_time))
+        if yes:
+            os.replace(path, to)
+        else:
+            os.rename(path, to)
+        # Set modify timestamp
+        cr_time = dt.timestamp()
+        os.utime(to, (cr_time, cr_time))
 
     
 def main(argv: Optional[List[str]] = None) -> int:
@@ -85,20 +80,26 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description='Rename (mv) movie files using Recorded Date field',
                                                  fromfile_prefix_chars='+')
 
-    parser.add_argument('--format', metavar='str', default=None, help=f'Custom format string, default="{formatstr}"')
+    #parser.add_argument('--format', metavar='str', default=None, help=f'Custom format string, default="{formatstr}"')
     parser.add_argument('--datetime', dest='datetime_opt', metavar='str', type=str, default='', help='Use given "yyyy-mm-dd[ HH:MM[:SS]]" as date/time')
-    parser.add_argument('--offset', metavar='[-]hh:mm', default=None, help='Offset time. Ex: "8:00"')
+    parser.add_argument('--offset', metavar='[-]hh:mm', default=None, help='Offset time. Ex: " -9:00" (space required when - used)')
+    parser.add_argument('--guess', action='store_true', default=False, help='Print offset between filename and recording time, no file change')
+    parser.add_argument('--simulate', action='store_true', default=False, help='Print generated command, no file change')
     parser.add_argument('-y', '--yes', action='store_true', default=False, help='Yes to overwrite.')
     parser.add_argument('infiles', nargs='+', type=str, help='Input movie files')
 
     args = parser.parse_args(args=argv)
 
-    if args.format is not None:
-        formatstr = args.format
+    #if args.format is not None:
+    #    formatstr = args.format
 
     for path in args.infiles:
         args.path = path
-        mv_datetime(**vars(args))
+        if args.guess:
+            dif = guess_offset(path)
+            print(f'{dif} : {path}')
+        else:
+            mv_datetime(**vars(args))
     return 0
 
 if __name__ == '__main__':

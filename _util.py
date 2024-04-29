@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 #    The MIT License (MIT)
 #    Copyright (c) Kiyo Chinzei (kchinzei@gmail.com)
 #    Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -46,9 +47,11 @@ def get_exifdata(path: str, field: str) -> str|None:
             return tags[0]
     return None
 
+
 def set_exifdata(path: str, field: str, val: str):
     with ExifToolHelper() as etool:
         etool.set_tags(path, {field: val})
+
 
 def copy_exifdata(pathfrom: str, pathto:str):
     with ExifToolHelper() as etool:
@@ -64,8 +67,10 @@ def append_exifcomment(pathto: str, text:str):
     set_exifdata(pathto, 'UserComment', f'{text}\n{comment}')
 
 
-def get_datetime_fromstr(datetime_str: str) -> datetime|None:
-    m = re.match(r'^(\d\d\d\d)[-|:](\d\d)[-|:](\d\d)( (\d\d):(\d\d)(:(\d\d))?)?', datetime_str)
+def get_datetime_fromstr(datetime_str: str, datetime_pattern: Optional[str] = None) -> datetime|None:
+    if datetime_pattern is None:
+        datetime_pattern = r'^(\d\d\d\d)[-|:](\d\d)[-|:](\d\d)( (\d\d):(\d\d)(:(\d\d))?)?'
+    m = re.match(datetime_pattern, datetime_str)
     if m is None:
         return None
     year_s = m.group(1)
@@ -106,3 +111,28 @@ def get_datetime_fromfile(path: str, offset: Optional[str] = None) -> datetime|N
             else:
                 dt += delta
     return dt
+
+
+fname_format = '{}-{}-{}_{}{}_{}' # replaced by yyyy, mm, dd, HH, MM, SS
+fname_regexp = r'(\d\d\d\d)-(\d\d)-(\d\d)(_(\d\d)(\d\d)(_(\d\d))?)?'
+
+
+def datetime2strs(dt: datetime) -> tuple[str, str, str, str, str, str]:
+    return f'{dt.year}', f'{dt.month:02}', f'{dt.day:02}', f'{dt.hour:02}', f'{dt.minute:02}', f'{dt.second:02}'
+
+
+def datetime2fname(dt: datetime) -> str:
+    y0, m0, d0, hh0, mm0, ss0 = datetime2strs(dt)
+    return fname_format.format(y0, m0, d0, hh0, mm0, ss0)
+
+
+def guess_offset(path: str) -> timedelta|None:
+    '''
+    Find difference between embedded recording time and filename.
+    '''
+    dt_filename = get_datetime_fromstr(os.path.basename(path), fname_regexp)
+    dt_embedded = get_datetime_fromfile(path)
+    if dt_filename is None or dt_embedded is None:
+        return None
+    else:
+        return dt_filename - dt_embedded

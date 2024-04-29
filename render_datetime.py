@@ -60,7 +60,7 @@ import tempfile
 from datetime import datetime, timedelta
 import shlex
 import ffmpeg # Need ffmpeg-python (not other similar ones)
-from _util import get_mediainfo, copy_exifdata, append_exifcomment, get_datetime_fromstr, get_datetime_fromfile
+from _util import get_mediainfo, copy_exifdata, append_exifcomment, get_datetime_fromstr, get_datetime_fromfile, guess_offset, datetime2strs
 from typing import Any, Container, Iterable, List, Dict, Optional, Union
 
 DEFAULT_FONTFILE = 'CRR55.TTF'
@@ -70,10 +70,6 @@ cwd = os.path.dirname(os.path.realpath(__file__))
 # Global variable
 font_path = os.path.join(cwd, 'font', DEFAULT_FONTFILE)
 ffmpeg_path = 'ffmpeg'
-
-
-def datetime2strs(dt: datetime) -> tuple[str, str, str, str, str, str]:
-    return f'{dt.year}', f'{dt.month:02}', f'{dt.day:02}', f'{dt.hour:02}', f'{dt.minute:02}', f'{dt.second:02}'
 
 
 def parse_string_to_dict(input_string: str) -> Dict[str, Union[str,bool]]:
@@ -125,6 +121,7 @@ def render_datetime(input: str,
                     sec_begin: Optional[float] = 1.0,
                     sec_len: Optional[float] = 4.0,
                     offset: Optional[str|None] = None,
+                    guess: Optional[bool] = False,
                     show_tc: Optional[bool] = False,
                     show_date: Optional[bool] = True,
                     show_time: Optional[bool] = True,
@@ -164,6 +161,9 @@ def render_datetime(input: str,
     if dt is None:
         print(f'Fail to get recorded date from {input} and you did not provide datetime as option.', file=sys.stderr)
         return 1
+    if guess:
+        dif = guess_offset(input)
+        dt += dif
     y0, m0, d0, hh0, mm0, ss0 = datetime2strs(dt)
 
     # Prepare date / time values for drawtext
@@ -307,7 +307,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument('--date', dest='show_date', action=argparse.BooleanOptionalAction, default=True, help='Render date or not')
     parser.add_argument('--time', dest='show_time', action=argparse.BooleanOptionalAction, default=True, help='Render time or not')
     parser.add_argument('--datetime', dest='datetime_opt', metavar='str', default='', help='Use given "yyyy-mm-dd[ HH:MM[:SS]]" as date/time')
-    parser.add_argument('--offset', metavar='[-]hh:mm', default=None, help='Offset time. Ex: "8:00"')
+    parser.add_argument('--offset', metavar='[-]hh:mm', default=None, help='Offset time. Ex: " -9:00" (space required when - used)')
+    parser.add_argument('--guess', action='store_true', default=False, help='Guess offset from filename and recording time')
     parser.add_argument('--vf', '-vf', dest='args_vfilter', metavar='args', action='append', default=[], help='Video filter. Ex "scale=w=iw/2:h=ih/2"')
     parser.add_argument('--af', '-af', dest='args_afilter', metavar='args', action='append', default=[], help='Audio filter. Ex "afftdn=nr=10:nf=-40"')
     parser.add_argument('--encode', dest='args_encode', metavar='args', default='', help='Encode arguments. Ex " -c:v libx264 -preset slow -c:a ac3"')

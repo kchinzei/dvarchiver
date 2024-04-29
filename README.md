@@ -35,6 +35,7 @@ The rest of tools (hardware and software, installation) are same as [Léo did](h
 ## Workflow
 
 Léo explained first four steps (a bit difference in the 4th).
+
 1. Connect a video player to Mac using a FireWire cable and dongles.
 1. Find the device descriptions using `ffmpeg`.
 1. Capture video using `ffmpeg-dl`.
@@ -74,19 +75,20 @@ you can manually provide date (optionally time also) to `mv_datetime.py` and `re
 ## Usage
 
 ```bash
-mv_datetime.py [-h] [--format str] [--datetime str] [-y] infiles [infiles ...]
+mv_datetime.py [-h] [--datetime str] [-y] infiles [infiles ...]
 ```
 
-Rename (mv) movie files using 'Recoeded Date' field.
+Rename (mv) movie files using 'Recorded Date' field.
 For example, if a DV file starts at 12:30:45 of Apr. 1, 2024, its file name will be 2024-04-01_1230_45.dv
 You can manually provide date/time.
 
 | Options |     |
 | ------- | --- |
 | `-h`, `--help`    | show this help message and exit |
-| `--format str`    | Custom format string, default=`"{}-{}-{}_{}{}_{}"` |
 | `--datetime str`  | Use given `"yyyy-mm-dd[ HH:MM[:SS]]"` as date/time |
 | `--offset str`    | Apply offset to embedded datetime. Ex: " -8:00"    |
+| `--guess`         | Print offset between filename and recording time, no file change |
+| `--simulate`      | Print generated command, no file change |
 | `-y`, `--yes`     | Yes to overwrite |
 
 ```bash
@@ -111,6 +113,7 @@ Format of the output file is determined by the suffix of the output file name.
 | `--time`, `--no-time`  | Render time or not|
 | `--datetime str`       | Use given `"yyyy-mm-dd[ HH:MM[:SS]]"` as date/time |
 | `--offset str`         | Apply offset to embedded datetime. Ex: " -8:00"    |
+| `--guess`              | Guess offset from filename and recording time      |
 | `-vf args`, `--vf args`| Video filter arguments. Ex `yadif=mode=send_frame` |
 | `-af args`, `--af args`| Audio filter arguments. Ex `afftdn=nr=10:nf=-40` |
 | `--encode args`        | Optional encode arguments. Ex `" -c:v libx264 -preset slow -crf 20 -c:a ac3"` |
@@ -151,7 +154,7 @@ It also does not modify the related EXIF data fields.
       `send_frame` keeps original frame rate.
 - `-vf eq=gamma=1.3` : gamma correction.
 - `-af afftdn` : FFT based noise reduction.
-- `--encode " -c:v flibx264 -preset fast -c:a ac3"` : output in h264 with audio in ac3.
+- `--encode " -c:v libx264 -preset fast -c:a ac3"` : output in h264 with audio in ac3.
 
 For video filters, see [Video Filters](https://ffmpeg.org/ffmpeg-filters.html#Video-Filters).
 For audio filters, see [Audio Filters](https://ffmpeg.org/ffmpeg-filters.html#VAudio-Filters).
