@@ -260,7 +260,7 @@ def render_datetime(input: str,
         kwargs_filter = parse_filter_args_to_dict(argstr)
         filter_name = kwargs_filter.pop('name', None)
         if filter_name is not None:
-            video = ffmpeg.filter(audio, filter_name, **kwargs_filter)
+            audio = ffmpeg.filter(audio, filter_name, **kwargs_filter)
     result_stream = ffmpeg.output(video, audio, output, **kwargs_output)
 
     # 8) Do it or simulate it.
