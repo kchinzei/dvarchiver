@@ -64,6 +64,7 @@ from _util import get_mediainfo, copy_exifdata, append_exifcomment, get_datetime
 from typing import Any, Container, Iterable, List, Dict, Optional, Union
 
 DEFAULT_FONTFILE = 'CRR55.TTF'
+DEFAULT_SEC = 7
 
 cwd = os.path.dirname(os.path.realpath(__file__))
 
@@ -119,7 +120,7 @@ def render_datetime(input: str,
                     output: str,
                     optext: Optional[str|None] = None,
                     sec_begin: Optional[float] = 1.0,
-                    sec_len: Optional[float] = 4.0,
+                    sec_len: Optional[float] = DEFAULT_SEC,
                     offset: Optional[str|None] = None,
                     guess: Optional[bool] = False,
                     show_tc: Optional[bool] = False,
@@ -300,8 +301,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument('-s', '--size', dest='text_size', metavar='%', type=float, default="5", help='Font size in %%')
     parser.add_argument('-c', '--color', dest='text_color', metavar='str', default="white", help='Text color (yellow, etc)')
     parser.add_argument('-b', '--begin', dest='sec_begin', metavar='sec', type=float, default=1.0, help='Begin rendering date/time, in second')
-    parser.add_argument('-l', '--len', dest='sec_len', metavar='sec', type=float, default=4.0, help='Duration of rendering date/time. No end if negative')
-    parser.add_argument('-v', '--vpos', dest='text_vpos', metavar='t/b', choices=['t','b'], default="b", help='Render text at top or bottom')
+    parser.add_argument('-l', '--len', dest='sec_len', metavar='sec', type=float, default=DEFAULT_SEC, help='Duration of rendering date/time. No end if negative')
+    parser.add_argument('-v', '--vpos', dest='text_vpos', metavar='t/b', choices=['t','b'], default='b', help='Render text at top or bottom')
     parser.add_argument('--font', metavar='path', default=None, help='Full path to a font file')
     parser.add_argument('-t', '--tc', dest='show_tc', action='store_true', default=False, help='Render timecode rather than time in HH:MM')
     parser.add_argument('--date', dest='show_date', action=argparse.BooleanOptionalAction, default=True, help='Render date or not')

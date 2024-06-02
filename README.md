@@ -88,6 +88,7 @@ You can manually provide date/time.
 | `--datetime str`  | Use given `"yyyy-mm-dd[ HH:MM[:SS]]"` as date/time |
 | `--offset str`    | Apply offset to embedded datetime. Ex: " -8:00"    |
 | `--guess`         | Print offset between filename and recording time, no file change |
+| `--touch`         | Modify file modification time only |
 | `--simulate`      | Print generated command, no file change |
 | `-y`, `--yes`     | Yes to overwrite |
 
@@ -146,7 +147,7 @@ It also does not modify the related EXIF data fields.
 `--encode` specifies the output encode. It should be supplied only once.
 
 - Argument needs to be quoted to avoid shell expands it incorrectly.
-- Argument must starts with a space to avoid `-c:v` or `-c:a` confused from `-c`.
+- Argument must start with a space to avoid `-c:v` or `-c:a` confused from `-c`.
 
 #### Examples
 
@@ -183,7 +184,7 @@ This ffmpeg setting uses 48kHz sampling rate for audio,
 even when the input `.dv` is in 32kHz.
 - `render_datetime.py` has an option `--bug`.
 Sporadically dv muxer of ffmpeg fails with "Assertion cur_size >= size..." message.
-When it happens, try `--bug`.
+When it happens, try `--bug`. About this symptom, [see here](https://github.com/kchinzei/ffmpeg_dv_issue).
 - `render_datetime.py` needs FPS (frame-per-sec) information to render timecode.
 It uses FPS obtained from the input movie.
 If a filter that modifies FPS applied, the timecode will be incorrectly rendered.
